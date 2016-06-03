@@ -89,3 +89,147 @@ java.io.FileNotFoundException: Path "${workspace_loc:/mw336071/matrixmul}" not f
 
 !ENTRY org.eclipse.cdt.core 1 0 2016-06-03 03:39:13.584
 !MESSAGE Indexed 'mw336071' (3 sources, 203 headers) in 2,4 sec: 17 591 declarations; 26 949 references; 0 unresolved inclusions; 1 syntax errors; 0 unresolved names (0%)
+
+!ENTRY org.eclipse.ptp.launch 4 4 2016-06-03 03:43:58.949
+!MESSAGE Cannot process for your request due to session is exiting or exited.
+!STACK 1
+org.eclipse.core.runtime.CoreException: Cannot process for your request due to session is exiting or exited.
+	at org.eclipse.ptp.launch.ParallelLaunchConfigurationDelegate.terminateDebugSession(ParallelLaunchConfigurationDelegate.java:285)
+	at org.eclipse.ptp.launch.ParallelLaunchConfigurationDelegate.doCleanupLaunch(ParallelLaunchConfigurationDelegate.java:105)
+	at org.eclipse.ptp.launch.AbstractParallelLaunchConfigurationDelegate$JobSubmission.run(AbstractParallelLaunchConfigurationDelegate.java:159)
+	at org.eclipse.core.internal.jobs.Worker.run(Worker.java:55)
+!SUBENTRY 1 org.eclipse.ptp.launch 4 4 2016-06-03 03:43:58.951
+!MESSAGE Cannot process for your request due to session is exiting or exited.
+
+!ENTRY org.eclipse.ptp.launch 4 4 2016-06-03 03:45:34.026
+!MESSAGE Cannot process for your request due to session is exiting or exited.
+!STACK 1
+org.eclipse.core.runtime.CoreException: Cannot process for your request due to session is exiting or exited.
+	at org.eclipse.ptp.launch.ParallelLaunchConfigurationDelegate.terminateDebugSession(ParallelLaunchConfigurationDelegate.java:285)
+	at org.eclipse.ptp.launch.ParallelLaunchConfigurationDelegate.doCleanupLaunch(ParallelLaunchConfigurationDelegate.java:105)
+	at org.eclipse.ptp.launch.AbstractParallelLaunchConfigurationDelegate$JobSubmission.run(AbstractParallelLaunchConfigurationDelegate.java:159)
+	at org.eclipse.core.internal.jobs.Worker.run(Worker.java:55)
+!SUBENTRY 1 org.eclipse.ptp.launch 4 4 2016-06-03 03:45:34.026
+!MESSAGE Cannot process for your request due to session is exiting or exited.
+
+!ENTRY org.eclipse.ptp.launch 4 4 2016-06-03 03:46:57.511
+!MESSAGE Cannot process for your request due to session is exiting or exited.
+!STACK 1
+org.eclipse.core.runtime.CoreException: Cannot process for your request due to session is exiting or exited.
+	at org.eclipse.ptp.launch.ParallelLaunchConfigurationDelegate.terminateDebugSession(ParallelLaunchConfigurationDelegate.java:285)
+	at org.eclipse.ptp.launch.ParallelLaunchConfigurationDelegate.doCleanupLaunch(ParallelLaunchConfigurationDelegate.java:105)
+	at org.eclipse.ptp.launch.AbstractParallelLaunchConfigurationDelegate$JobSubmission.run(AbstractParallelLaunchConfigurationDelegate.java:159)
+	at org.eclipse.core.internal.jobs.Worker.run(Worker.java:55)
+!SUBENTRY 1 org.eclipse.ptp.launch 4 4 2016-06-03 03:46:57.511
+!MESSAGE Cannot process for your request due to session is exiting or exited.
+
+!ENTRY org.eclipse.ptp.launch 4 4 2016-06-03 03:50:20.830
+!MESSAGE Cannot process for your request due to session is exiting or exited.
+!STACK 1
+org.eclipse.core.runtime.CoreException: Cannot process for your request due to session is exiting or exited.
+	at org.eclipse.ptp.launch.ParallelLaunchConfigurationDelegate.terminateDebugSession(ParallelLaunchConfigurationDelegate.java:285)
+	at org.eclipse.ptp.launch.ParallelLaunchConfigurationDelegate.doCleanupLaunch(ParallelLaunchConfigurationDelegate.java:105)
+	at org.eclipse.ptp.launch.AbstractParallelLaunchConfigurationDelegate$JobSubmission.run(AbstractParallelLaunchConfigurationDelegate.java:159)
+	at org.eclipse.core.internal.jobs.Worker.run(Worker.java:55)
+!SUBENTRY 1 org.eclipse.ptp.launch 4 4 2016-06-03 03:50:20.830
+!MESSAGE Cannot process for your request due to session is exiting or exited.
+
+!ENTRY org.eclipse.ptp.launch 4 4 2016-06-03 03:52:00.488
+!MESSAGE Cannot process for your request due to session is exiting or exited.
+!STACK 1
+org.eclipse.core.runtime.CoreException: Cannot process for your request due to session is exiting or exited.
+	at org.eclipse.ptp.launch.ParallelLaunchConfigurationDelegate.terminateDebugSession(ParallelLaunchConfigurationDelegate.java:285)
+	at org.eclipse.ptp.launch.ParallelLaunchConfigurationDelegate.doCleanupLaunch(ParallelLaunchConfigurationDelegate.java:105)
+	at org.eclipse.ptp.launch.AbstractParallelLaunchConfigurationDelegate$JobSubmission.run(AbstractParallelLaunchConfigurationDelegate.java:159)
+	at org.eclipse.core.internal.jobs.Worker.run(Worker.java:55)
+!SUBENTRY 1 org.eclipse.ptp.launch 4 4 2016-06-03 03:52:00.488
+!MESSAGE Cannot process for your request due to session is exiting or exited.
+!SESSION 2016-06-03 04:02:43.893 -----------------------------------------------
+eclipse.buildId=4.5.2.M20160212-1500
+java.version=1.8.0_91
+java.vendor=Oracle Corporation
+BootLoader constants: OS=linux, ARCH=x86_64, WS=gtk, NL=pl_PL
+Framework arguments:  -product org.eclipse.epp.package.parallel.product
+Command-line arguments:  -os linux -ws gtk -arch x86_64 -product org.eclipse.epp.package.parallel.product
+
+!ENTRY org.eclipse.ptp.launch 4 4 2016-06-03 04:04:56.706
+!MESSAGE Cannot process for your request due to session is exiting or exited.
+!STACK 1
+org.eclipse.core.runtime.CoreException: Cannot process for your request due to session is exiting or exited.
+	at org.eclipse.ptp.launch.ParallelLaunchConfigurationDelegate.terminateDebugSession(ParallelLaunchConfigurationDelegate.java:285)
+	at org.eclipse.ptp.launch.ParallelLaunchConfigurationDelegate.doCleanupLaunch(ParallelLaunchConfigurationDelegate.java:105)
+	at org.eclipse.ptp.launch.AbstractParallelLaunchConfigurationDelegate$JobSubmission.run(AbstractParallelLaunchConfigurationDelegate.java:159)
+	at org.eclipse.core.internal.jobs.Worker.run(Worker.java:55)
+!SUBENTRY 1 org.eclipse.ptp.launch 4 4 2016-06-03 04:04:56.707
+!MESSAGE Cannot process for your request due to session is exiting or exited.
+
+!ENTRY org.eclipse.ptp.launch 4 4 2016-06-03 04:06:36.943
+!MESSAGE Cannot process for your request due to session is exiting or exited.
+!STACK 1
+org.eclipse.core.runtime.CoreException: Cannot process for your request due to session is exiting or exited.
+	at org.eclipse.ptp.launch.ParallelLaunchConfigurationDelegate.terminateDebugSession(ParallelLaunchConfigurationDelegate.java:285)
+	at org.eclipse.ptp.launch.ParallelLaunchConfigurationDelegate.doCleanupLaunch(ParallelLaunchConfigurationDelegate.java:105)
+	at org.eclipse.ptp.launch.AbstractParallelLaunchConfigurationDelegate$JobSubmission.run(AbstractParallelLaunchConfigurationDelegate.java:159)
+	at org.eclipse.core.internal.jobs.Worker.run(Worker.java:55)
+!SUBENTRY 1 org.eclipse.ptp.launch 4 4 2016-06-03 04:06:36.943
+!MESSAGE Cannot process for your request due to session is exiting or exited.
+
+!ENTRY org.eclipse.ptp.launch 4 4 2016-06-03 04:08:20.908
+!MESSAGE Cannot process for your request due to session is exiting or exited.
+!STACK 1
+org.eclipse.core.runtime.CoreException: Cannot process for your request due to session is exiting or exited.
+	at org.eclipse.ptp.launch.ParallelLaunchConfigurationDelegate.terminateDebugSession(ParallelLaunchConfigurationDelegate.java:285)
+	at org.eclipse.ptp.launch.ParallelLaunchConfigurationDelegate.doCleanupLaunch(ParallelLaunchConfigurationDelegate.java:105)
+	at org.eclipse.ptp.launch.AbstractParallelLaunchConfigurationDelegate$JobSubmission.run(AbstractParallelLaunchConfigurationDelegate.java:159)
+	at org.eclipse.core.internal.jobs.Worker.run(Worker.java:55)
+!SUBENTRY 1 org.eclipse.ptp.launch 4 4 2016-06-03 04:08:20.909
+!MESSAGE Cannot process for your request due to session is exiting or exited.
+
+!ENTRY org.eclipse.ptp.launch 4 4 2016-06-03 04:15:57.680
+!MESSAGE Cannot process for your request due to session is exiting or exited.
+!STACK 1
+org.eclipse.core.runtime.CoreException: Cannot process for your request due to session is exiting or exited.
+	at org.eclipse.ptp.launch.ParallelLaunchConfigurationDelegate.terminateDebugSession(ParallelLaunchConfigurationDelegate.java:285)
+	at org.eclipse.ptp.launch.ParallelLaunchConfigurationDelegate.doCleanupLaunch(ParallelLaunchConfigurationDelegate.java:105)
+	at org.eclipse.ptp.launch.AbstractParallelLaunchConfigurationDelegate$JobSubmission.run(AbstractParallelLaunchConfigurationDelegate.java:159)
+	at org.eclipse.core.internal.jobs.Worker.run(Worker.java:55)
+!SUBENTRY 1 org.eclipse.ptp.launch 4 4 2016-06-03 04:15:57.680
+!MESSAGE Cannot process for your request due to session is exiting or exited.
+
+!ENTRY org.eclipse.ptp.launch 4 4 2016-06-03 04:16:01.759
+!MESSAGE Cannot process for your request due to session is exiting or exited.
+!STACK 1
+org.eclipse.core.runtime.CoreException: Cannot process for your request due to session is exiting or exited.
+	at org.eclipse.ptp.launch.ParallelLaunchConfigurationDelegate.terminateDebugSession(ParallelLaunchConfigurationDelegate.java:285)
+	at org.eclipse.ptp.launch.ParallelLaunchConfigurationDelegate.doCleanupLaunch(ParallelLaunchConfigurationDelegate.java:105)
+	at org.eclipse.ptp.launch.AbstractParallelLaunchConfigurationDelegate$JobSubmission.run(AbstractParallelLaunchConfigurationDelegate.java:159)
+	at org.eclipse.core.internal.jobs.Worker.run(Worker.java:55)
+!SUBENTRY 1 org.eclipse.ptp.launch 4 4 2016-06-03 04:16:01.760
+!MESSAGE Cannot process for your request due to session is exiting or exited.
+
+!ENTRY org.eclipse.debug.ui 4 0 2016-06-03 04:22:17.001
+!MESSAGE Tab group extension: org.eclipse.cdt.launch.applicationProfileLaunchTabGroup for type org.eclipse.cdt.launch.applicationLaunchType for the [profile] mode has been replaced by extension: org.eclipse.cdt.launch.applicationProfileLaunchTabGroup
+
+!ENTRY org.eclipse.ptp.launch 4 0 2016-06-03 04:22:54.530
+!MESSAGE Application file does not exist
+!STACK 0
+java.io.FileNotFoundException: Path "/home/m/studia/PWiR/matrix/eclipseWorkspace2/mw336071/matrixmul_deb" not found
+	at org.eclipse.ptp.launch.AbstractParallelLaunchConfigurationDelegate.verifyExecutablePath(AbstractParallelLaunchConfigurationDelegate.java:653)
+	at org.eclipse.ptp.launch.AbstractParallelLaunchConfigurationDelegate.verifyLaunchAttributes(AbstractParallelLaunchConfigurationDelegate.java:668)
+	at org.eclipse.ptp.launch.ParallelLaunchConfigurationDelegate.launch(ParallelLaunchConfigurationDelegate.java:190)
+	at org.eclipse.debug.internal.core.LaunchConfiguration.launch(LaunchConfiguration.java:885)
+	at org.eclipse.debug.internal.core.LaunchConfiguration.launch(LaunchConfiguration.java:739)
+	at org.eclipse.debug.internal.ui.DebugUIPlugin.buildAndLaunch(DebugUIPlugin.java:1039)
+	at org.eclipse.debug.internal.ui.DebugUIPlugin$8.run(DebugUIPlugin.java:1256)
+	at org.eclipse.core.internal.jobs.Worker.run(Worker.java:55)
+
+!ENTRY org.eclipse.ptp.launch 4 4 2016-06-03 04:23:24.026
+!MESSAGE Cannot process for your request due to session is exiting or exited.
+!STACK 1
+org.eclipse.core.runtime.CoreException: Cannot process for your request due to session is exiting or exited.
+	at org.eclipse.ptp.launch.ParallelLaunchConfigurationDelegate.terminateDebugSession(ParallelLaunchConfigurationDelegate.java:285)
+	at org.eclipse.ptp.launch.ParallelLaunchConfigurationDelegate.doCleanupLaunch(ParallelLaunchConfigurationDelegate.java:105)
+	at org.eclipse.ptp.launch.AbstractParallelLaunchConfigurationDelegate$JobSubmission.run(AbstractParallelLaunchConfigurationDelegate.java:159)
+	at org.eclipse.core.internal.jobs.Worker.run(Worker.java:55)
+!SUBENTRY 1 org.eclipse.ptp.launch 4 4 2016-06-03 04:23:24.026
+!MESSAGE Cannot process for your request due to session is exiting or exited.
