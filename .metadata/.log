@@ -1,0 +1,91 @@
+!SESSION 2016-06-03 03:20:39.723 -----------------------------------------------
+eclipse.buildId=4.5.2.M20160212-1500
+java.version=1.8.0_91
+java.vendor=Oracle Corporation
+BootLoader constants: OS=linux, ARCH=x86_64, WS=gtk, NL=pl_PL
+Framework arguments:  -product org.eclipse.epp.package.parallel.product
+Command-line arguments:  -os linux -ws gtk -arch x86_64 -product org.eclipse.epp.package.parallel.product
+
+!ENTRY org.eclipse.core.resources 4 77 2016-06-03 03:22:29.374
+!MESSAGE Invalid project description.
+!SUBENTRY 1 unknown 0 0 2016-06-03 03:22:29.374
+!MESSAGE OK
+!SUBENTRY 1 org.eclipse.core.resources 4 77 2016-06-03 03:22:29.374
+!MESSAGE /home/m/studia/PWiR/matrix/eclipseWorkspace2 overlaps the workspace location: /home/m/studia/PWiR/matrix/eclipseWorkspace2
+
+!ENTRY org.eclipse.cdt.core 1 0 2016-06-03 03:24:44.512
+!MESSAGE Indexed 'tmp' (1 sources, 38 headers) in 0,656 sec: 1 207 declarations; 1 817 references; 0 unresolved inclusions; 0 syntax errors; 0 unresolved names (0%)
+
+!ENTRY org.eclipse.debug.ui 4 0 2016-06-03 03:25:31.508
+!MESSAGE Tab group extension: org.eclipse.cdt.launch.applicationProfileLaunchTabGroup for type org.eclipse.cdt.launch.applicationLaunchType for the [profile] mode has been replaced by extension: org.eclipse.cdt.launch.applicationProfileLaunchTabGroup
+
+!ENTRY org.eclipse.ptp.launch 4 0 2016-06-03 03:29:41.270
+!MESSAGE Application file does not exist
+!STACK 0
+java.io.FileNotFoundException: Path "matrixmul" not found
+	at org.eclipse.ptp.launch.AbstractParallelLaunchConfigurationDelegate.verifyExecutablePath(AbstractParallelLaunchConfigurationDelegate.java:653)
+	at org.eclipse.ptp.launch.AbstractParallelLaunchConfigurationDelegate.verifyLaunchAttributes(AbstractParallelLaunchConfigurationDelegate.java:668)
+	at org.eclipse.ptp.launch.ParallelLaunchConfigurationDelegate.launch(ParallelLaunchConfigurationDelegate.java:190)
+	at org.eclipse.debug.internal.core.LaunchConfiguration.launch(LaunchConfiguration.java:885)
+	at org.eclipse.debug.internal.core.LaunchConfiguration.launch(LaunchConfiguration.java:739)
+	at org.eclipse.debug.internal.ui.DebugUIPlugin.buildAndLaunch(DebugUIPlugin.java:1039)
+	at org.eclipse.debug.internal.ui.DebugUIPlugin$8.run(DebugUIPlugin.java:1256)
+	at org.eclipse.core.internal.jobs.Worker.run(Worker.java:55)
+
+!ENTRY org.eclipse.ptp.launch 4 0 2016-06-03 03:30:13.037
+!MESSAGE Application file does not exist
+!STACK 0
+java.io.FileNotFoundException: Path "tmp/matrixmul" not found
+	at org.eclipse.ptp.launch.AbstractParallelLaunchConfigurationDelegate.verifyExecutablePath(AbstractParallelLaunchConfigurationDelegate.java:653)
+	at org.eclipse.ptp.launch.AbstractParallelLaunchConfigurationDelegate.verifyLaunchAttributes(AbstractParallelLaunchConfigurationDelegate.java:668)
+	at org.eclipse.ptp.launch.ParallelLaunchConfigurationDelegate.launch(ParallelLaunchConfigurationDelegate.java:190)
+	at org.eclipse.debug.internal.core.LaunchConfiguration.launch(LaunchConfiguration.java:885)
+	at org.eclipse.debug.internal.core.LaunchConfiguration.launch(LaunchConfiguration.java:739)
+	at org.eclipse.debug.internal.ui.DebugUIPlugin.buildAndLaunch(DebugUIPlugin.java:1039)
+	at org.eclipse.debug.internal.ui.DebugUIPlugin$8.run(DebugUIPlugin.java:1256)
+	at org.eclipse.core.internal.jobs.Worker.run(Worker.java:55)
+
+!ENTRY org.eclipse.cdt.core 1 0 2016-06-03 03:31:35.824
+!MESSAGE Indexed 'mw336071' (3 sources, 75 headers) in 0,351 sec: 1 932 declarations; 3 203 references; 1 unresolved inclusions; 1 syntax errors; 15 unresolved names (0,29%)
+
+!ENTRY org.eclipse.ptp.launch 4 0 2016-06-03 03:33:30.618
+!MESSAGE Application file does not exist
+!STACK 0
+java.io.FileNotFoundException: Path "${workspace_loc:/mw336071}/matrixmul" not found
+	at org.eclipse.ptp.launch.AbstractParallelLaunchConfigurationDelegate.verifyExecutablePath(AbstractParallelLaunchConfigurationDelegate.java:653)
+	at org.eclipse.ptp.launch.AbstractParallelLaunchConfigurationDelegate.verifyLaunchAttributes(AbstractParallelLaunchConfigurationDelegate.java:668)
+	at org.eclipse.ptp.launch.ParallelLaunchConfigurationDelegate.launch(ParallelLaunchConfigurationDelegate.java:190)
+	at org.eclipse.debug.internal.core.LaunchConfiguration.launch(LaunchConfiguration.java:885)
+	at org.eclipse.debug.internal.core.LaunchConfiguration.launch(LaunchConfiguration.java:739)
+	at org.eclipse.debug.internal.ui.DebugUIPlugin.buildAndLaunch(DebugUIPlugin.java:1039)
+	at org.eclipse.debug.internal.ui.DebugUIPlugin$8.run(DebugUIPlugin.java:1256)
+	at org.eclipse.core.internal.jobs.Worker.run(Worker.java:55)
+
+!ENTRY org.eclipse.ptp.launch 4 0 2016-06-03 03:34:30.094
+!MESSAGE Application file does not exist
+!STACK 0
+java.io.FileNotFoundException: Path "${workspace_loc:/mw336071}/mw336071/matrixmul" not found
+	at org.eclipse.ptp.launch.AbstractParallelLaunchConfigurationDelegate.verifyExecutablePath(AbstractParallelLaunchConfigurationDelegate.java:653)
+	at org.eclipse.ptp.launch.AbstractParallelLaunchConfigurationDelegate.verifyLaunchAttributes(AbstractParallelLaunchConfigurationDelegate.java:668)
+	at org.eclipse.ptp.launch.ParallelLaunchConfigurationDelegate.launch(ParallelLaunchConfigurationDelegate.java:190)
+	at org.eclipse.debug.internal.core.LaunchConfiguration.launch(LaunchConfiguration.java:885)
+	at org.eclipse.debug.internal.core.LaunchConfiguration.launch(LaunchConfiguration.java:739)
+	at org.eclipse.debug.internal.ui.DebugUIPlugin.buildAndLaunch(DebugUIPlugin.java:1039)
+	at org.eclipse.debug.internal.ui.DebugUIPlugin$8.run(DebugUIPlugin.java:1256)
+	at org.eclipse.core.internal.jobs.Worker.run(Worker.java:55)
+
+!ENTRY org.eclipse.ptp.launch 4 0 2016-06-03 03:34:54.979
+!MESSAGE Application file does not exist
+!STACK 0
+java.io.FileNotFoundException: Path "${workspace_loc:/mw336071/matrixmul}" not found
+	at org.eclipse.ptp.launch.AbstractParallelLaunchConfigurationDelegate.verifyExecutablePath(AbstractParallelLaunchConfigurationDelegate.java:653)
+	at org.eclipse.ptp.launch.AbstractParallelLaunchConfigurationDelegate.verifyLaunchAttributes(AbstractParallelLaunchConfigurationDelegate.java:668)
+	at org.eclipse.ptp.launch.ParallelLaunchConfigurationDelegate.launch(ParallelLaunchConfigurationDelegate.java:190)
+	at org.eclipse.debug.internal.core.LaunchConfiguration.launch(LaunchConfiguration.java:885)
+	at org.eclipse.debug.internal.core.LaunchConfiguration.launch(LaunchConfiguration.java:739)
+	at org.eclipse.debug.internal.ui.DebugUIPlugin.buildAndLaunch(DebugUIPlugin.java:1039)
+	at org.eclipse.debug.internal.ui.DebugUIPlugin$8.run(DebugUIPlugin.java:1256)
+	at org.eclipse.core.internal.jobs.Worker.run(Worker.java:55)
+
+!ENTRY org.eclipse.cdt.core 1 0 2016-06-03 03:39:13.584
+!MESSAGE Indexed 'mw336071' (3 sources, 203 headers) in 2,4 sec: 17 591 declarations; 26 949 references; 0 unresolved inclusions; 1 syntax errors; 0 unresolved names (0%)

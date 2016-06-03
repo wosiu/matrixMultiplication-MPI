@@ -1,0 +1,33 @@
+03:26:56 **** Incremental Build of configuration Default for project tmp ****
+make all 
+mpic++ -Wall -c -O3 --std=c++11 -o matrixmul.o matrixmul.cpp 
+matrixmul.cpp: In function ‘int main(int, char**)’:
+matrixmul.cpp:18:7: warning: variable ‘use_inner’ set but not used [-Wunused-but-set-variable]
+   int use_inner = 0;
+       ^
+matrixmul.cpp:20:7: warning: variable ‘repl_fact’ set but not used [-Wunused-but-set-variable]
+   int repl_fact = 1;
+       ^
+matrixmul.cpp:24:10: warning: variable ‘comm_start’ set but not used [-Wunused-but-set-variable]
+   double comm_start = 0, comm_end = 0, comp_start = 0, comp_end = 0;
+          ^
+matrixmul.cpp:24:26: warning: variable ‘comm_end’ set but not used [-Wunused-but-set-variable]
+   double comm_start = 0, comm_end = 0, comp_start = 0, comp_end = 0;
+                          ^
+matrixmul.cpp:24:40: warning: variable ‘comp_start’ set but not used [-Wunused-but-set-variable]
+   double comm_start = 0, comm_end = 0, comp_start = 0, comp_end = 0;
+                                        ^
+matrixmul.cpp:24:56: warning: variable ‘comp_end’ set but not used [-Wunused-but-set-variable]
+   double comm_start = 0, comm_end = 0, comp_start = 0, comp_end = 0;
+                                                        ^
+matrixmul.cpp:27:7: warning: variable ‘exponent’ set but not used [-Wunused-but-set-variable]
+   int exponent = 1;
+       ^
+matrixmul.cpp:28:10: warning: variable ‘ge_element’ set but not used [-Wunused-but-set-variable]
+   double ge_element = 0;
+          ^
+mpicc -Wall -c -O3 -o densematgen.o densematgen.c
+mpic++ -Wall -O3 --std=c++11 matrixmul.o densematgen.o -o matrixmul
+
+03:26:57 Build Finished (took 854ms)
+
