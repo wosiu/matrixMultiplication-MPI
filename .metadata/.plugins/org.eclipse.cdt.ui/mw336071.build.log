@@ -1,60 +1,53 @@
-04:23:00 **** Incremental Build of configuration Default for project mw336071 ****
+01:12:42 **** Incremental Build of configuration Default for project mw336071 ****
 make all 
-mpic++ -Wall -c --std=c++11  -O3 -o matrixmul.o matrixmul.cpp 
+mpic++ -Wall -c --std=c++11 -O3 -o matrixmul.o matrixmul.cpp 
 matrixmul.cpp: In function ‘int main(int, char**)’:
-matrixmul.cpp:18:6: warning: variable ‘use_inner’ set but not used [-Wunused-but-set-variable]
+matrixmul.cpp:142:6: warning: variable ‘use_inner’ set but not used [-Wunused-but-set-variable]
   int use_inner = 0;
       ^
-matrixmul.cpp:20:6: warning: variable ‘repl_fact’ set but not used [-Wunused-but-set-variable]
+matrixmul.cpp:144:6: warning: variable ‘repl_fact’ set but not used [-Wunused-but-set-variable]
   int repl_fact = 1;
       ^
-matrixmul.cpp:24:9: warning: variable ‘comm_start’ set but not used [-Wunused-but-set-variable]
+matrixmul.cpp:148:9: warning: variable ‘comm_start’ set but not used [-Wunused-but-set-variable]
   double comm_start = 0, comm_end = 0, comp_start = 0, comp_end = 0;
          ^
-matrixmul.cpp:24:25: warning: variable ‘comm_end’ set but not used [-Wunused-but-set-variable]
+matrixmul.cpp:148:25: warning: variable ‘comm_end’ set but not used [-Wunused-but-set-variable]
   double comm_start = 0, comm_end = 0, comp_start = 0, comp_end = 0;
                          ^
-matrixmul.cpp:24:39: warning: variable ‘comp_start’ set but not used [-Wunused-but-set-variable]
+matrixmul.cpp:148:39: warning: variable ‘comp_start’ set but not used [-Wunused-but-set-variable]
   double comm_start = 0, comm_end = 0, comp_start = 0, comp_end = 0;
                                        ^
-matrixmul.cpp:24:55: warning: variable ‘comp_end’ set but not used [-Wunused-but-set-variable]
+matrixmul.cpp:148:55: warning: variable ‘comp_end’ set but not used [-Wunused-but-set-variable]
   double comm_start = 0, comm_end = 0, comp_start = 0, comp_end = 0;
                                                        ^
-matrixmul.cpp:27:6: warning: variable ‘exponent’ set but not used [-Wunused-but-set-variable]
-  int exponent = 1;
-      ^
-matrixmul.cpp:28:9: warning: variable ‘ge_element’ set but not used [-Wunused-but-set-variable]
+matrixmul.cpp:152:9: warning: variable ‘ge_element’ set but not used [-Wunused-but-set-variable]
   double ge_element = 0;
          ^
-mpicc -Wall -c -O3 -o densematgen.o densematgen.c
-mpic++ -Wall --std=c++11  -O3 matrixmul.o densematgen.o -o matrixmul
-mpic++ -Wall -c --std=c++11  -g -o matrixmul_deb.o matrixmul.cpp 
+mpic++ -Wall --std=c++11 -O3 matrixmul.o densematgen.o utils.o -o matrixmul
+mpic++ -Wall -c --std=c++11 -g -o matrixmul_deb.o matrixmul.cpp 
 matrixmul.cpp: In function ‘int main(int, char**)’:
-matrixmul.cpp:18:6: warning: variable ‘use_inner’ set but not used [-Wunused-but-set-variable]
+matrixmul.cpp:142:6: warning: variable ‘use_inner’ set but not used [-Wunused-but-set-variable]
   int use_inner = 0;
       ^
-matrixmul.cpp:20:6: warning: variable ‘repl_fact’ set but not used [-Wunused-but-set-variable]
+matrixmul.cpp:144:6: warning: variable ‘repl_fact’ set but not used [-Wunused-but-set-variable]
   int repl_fact = 1;
       ^
-matrixmul.cpp:24:9: warning: variable ‘comm_start’ set but not used [-Wunused-but-set-variable]
+matrixmul.cpp:148:9: warning: variable ‘comm_start’ set but not used [-Wunused-but-set-variable]
   double comm_start = 0, comm_end = 0, comp_start = 0, comp_end = 0;
          ^
-matrixmul.cpp:24:25: warning: variable ‘comm_end’ set but not used [-Wunused-but-set-variable]
+matrixmul.cpp:148:25: warning: variable ‘comm_end’ set but not used [-Wunused-but-set-variable]
   double comm_start = 0, comm_end = 0, comp_start = 0, comp_end = 0;
                          ^
-matrixmul.cpp:24:39: warning: variable ‘comp_start’ set but not used [-Wunused-but-set-variable]
+matrixmul.cpp:148:39: warning: variable ‘comp_start’ set but not used [-Wunused-but-set-variable]
   double comm_start = 0, comm_end = 0, comp_start = 0, comp_end = 0;
                                        ^
-matrixmul.cpp:24:55: warning: variable ‘comp_end’ set but not used [-Wunused-but-set-variable]
+matrixmul.cpp:148:55: warning: variable ‘comp_end’ set but not used [-Wunused-but-set-variable]
   double comm_start = 0, comm_end = 0, comp_start = 0, comp_end = 0;
                                                        ^
-matrixmul.cpp:27:6: warning: variable ‘exponent’ set but not used [-Wunused-but-set-variable]
-  int exponent = 1;
-      ^
-matrixmul.cpp:28:9: warning: variable ‘ge_element’ set but not used [-Wunused-but-set-variable]
+matrixmul.cpp:152:9: warning: variable ‘ge_element’ set but not used [-Wunused-but-set-variable]
   double ge_element = 0;
          ^
-mpic++ -Wall --std=c++11  -g matrixmul_deb.o densematgen.o -o matrixmul_deb
+mpic++ -Wall --std=c++11 -g matrixmul_deb.o densematgen.o utils.o -o matrixmul_deb
 
-04:23:01 Build Finished (took 1s.215ms)
+01:12:44 Build Finished (took 1s.926ms)
 
