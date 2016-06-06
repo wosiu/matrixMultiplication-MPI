@@ -206,24 +206,17 @@ int main(int argc, char * argv[]) {
 		 return 0;*/
 	}
 
-	int show_results = 0;
-	int use_inner = 0;
-	int gen_seed = -1;
-	int repl_fact = 1;
-
-	int option = -1;
-
+	int show_results = 0, use_inner = 0, gen_seed = -1, repl_fact = 1, option = -1, exponent = 1, count_ge = 0;
+	int num_processes = 1, mpi_rank = 0;
 	double comm_start = 0, comm_end = 0, comp_start = 0, comp_end = 0;
-	int num_processes = 1;
-	int mpi_rank = 0;
-	int exponent = 1;
 	double ge_element = 0;
-	int count_ge = 0;
-
 	SparseMatrix sparse;
+
 	MPI_Init(&argc, &argv);
 	MPI_Comm_size(MPI_COMM_WORLD, &num_processes);
 	MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+	// init MPI
+	auto MPI_SPARSE_CELL = commitSparseCellType();
 
 	while ((option = getopt(argc, argv, "vis:f:c:e:g:")) != -1) {
 		switch (option) {
@@ -293,9 +286,6 @@ int main(int argc, char * argv[]) {
 		return 3;
 	}
 
-	// init MPI
-	auto MPI_SPARSE_CELL = commitSparseCellType();
-
 	comm_start = MPI_Wtime();
 // FIXME: scatter sparse matrix; cache sparse matrix; cache dense matrix
 	sparse_type my_sparse_chunk;
@@ -303,7 +293,6 @@ int main(int argc, char * argv[]) {
 	if ((mpi_rank) == 0) {
 		// prepare sparse chunks to scatter
 		vector<sparse_type> sparse_chunks;
-
 		sparse_chunks = colChunks(sparse, num_processes);
 
 		my_sparse_chunk = sparse_chunks[0];
@@ -312,18 +301,20 @@ int main(int argc, char * argv[]) {
 				continue;
 			}
 			cell * data = sparse_chunks[proc].data();
+			deb(proc); debt(data, sparse_chunks[proc].size());
 			MPI_Request req;
-			MPI_Isend(data, sparse_chunks[proc].size(), MPI_SPARSE_CELL, proc, 1, MPI::COMM_WORLD, &req);
+			MPI_Isend(data, sparse_chunks[proc].size(), MPI_SPARSE_CELL, proc, 0, MPI_COMM_WORLD, &req);
 			MPI_Request_free(&req);
 		}
 	} else {
 		MPI_Request req;
-
-		int incoming_size = 2; //FIXME
+		MPI_Status status;
+		MPI_Probe(0, 0, MPI::COMM_WORLD, &status);
+		int incoming_size;
+		MPI_Get_count(&status, MPI_SPARSE_CELL, &incoming_size);
+		deb(mpi_rank); deb(incoming_size);
 		my_sparse_chunk.resize(incoming_size);
-		MPI_Irecv(my_sparse_chunk.data(), incoming_size, MPI_SPARSE_CELL, 0, 1, MPI::COMM_WORLD, &req);
-		deb(my_sparse_chunk.size());
-		deb(my_sparse_chunk[0]);
+		MPI_Irecv(my_sparse_chunk.data(), incoming_size, MPI_SPARSE_CELL, 0, 0, MPI_COMM_WORLD, &req);
 		MPI_Request_free(&req);
 	}
 //	MPI_Gather(&my_sparse, 1, MPI_DOUBLE, sub_avgs, 1, MPI_FLOAT, 0,
