@@ -1,13 +1,17 @@
 #include <unordered_map>
-#include <stdio.h>
-#include <stdlib.h>
-#include <stddef.h>
+#include <iostream>
+#include <string>
+#include <fstream>      // std::ifstream
+#include <cstdio>
+#include <cstdlib>
+#include <cstddef>
 #include <mpi.h>
-#include <assert.h>
+#include <cassert>
 #include <getopt.h>
 #include <vector>
 #include <stdexcept>
 #include <algorithm>
+#include <cmath>
 #include "densematgen.h"
 #include "utils.h"
 
@@ -27,6 +31,11 @@ struct cell {
 	int x, y;
 	double v;
 };
+
+ostream & operator <<(std::ostream & s, const cell & v) {
+	return s << '(' << v.x << ',' << v.y << ":" << v.v << ")";
+}
+
 //typedef pair<pair<int,int>, double> cell;
 typedef vector<cell> sparse_type;
 class Matrix {
@@ -34,7 +43,7 @@ public:
 	int nrow, ncol;
 };
 
-class SparseMatrix : public Matrix {
+class SparseMatrix: public Matrix {
 public:
 	sparse_type cells;
 
@@ -50,8 +59,7 @@ public:
 
 };
 
-
-void commitSparseCellType() {
+MPI_Datatype commitSparseCellType() {
 	const int nitems = 3;
 	int blocklengths[nitems] = { 1, 1, 1 };
 	MPI_Datatype types[nitems] = { MPI_INT, MPI_INT, MPI_DOUBLE };
@@ -64,17 +72,70 @@ void commitSparseCellType() {
 
 	MPI_Type_create_struct(nitems, blocklengths, offsets, types, &mpi_type);
 	MPI_Type_commit(&mpi_type);
+	return mpi_type;
 }
 
-SparseMatrix readCSR(FILE * stream) {
+SparseMatrix readCSR(ifstream & stream) {
+	ios::sync_with_stdio(false);
 	int row_num, col_num, nz_num, max_num_nz_row;
-	if ( fscanf(stream, "%d %d %d %d ", &row_num, &col_num, &nz_num, &max_num_nz_row) != 4 ) {
+
+	if (!(stream >> row_num >> col_num >> nz_num >> max_num_nz_row).good()) {
 		throw runtime_error("Wrong format of sparse matrix - header");
 	}
 	vector<cell> cells(nz_num);
 
 	for (int i = 0; i < nz_num; i++) {
-		if ( fscanf(stream, "%lf ", &cells[i].v) != 1) {
+		if (!(stream >> cells[i].v).good()) {
+			throw runtime_error("Wrong format of sparse matrix - values");
+		}
+	}
+
+	int cell_i = 0;
+	int offset;
+
+	if (!(stream >> offset).good()) { // omit
+		throw runtime_error("Wrong format of sparse matrix - offset omit");
+	}
+	for (int row_i = 0; row_i < row_num; row_i++) {
+		if (!(stream >> offset).good()) {
+			throw runtime_error("Wrong format of sparse matrix - offset");
+		}
+		for (; cell_i < offset; cell_i++) {
+			cells[cell_i].x = row_i;
+		}
+	}
+
+	// JA
+	for (int i = 0; i < nz_num; i++) {
+		if (!(stream >> cells[i].y).good()) {
+			throw runtime_error("Wrong format of sparse matrix - columns");
+		}
+	}
+
+	char ch = 0;
+	if (!stream.eof()) {
+		stream >> ch;
+	}
+	if (ch != 0 || !stream.eof()) {
+		throw runtime_error("Wrong format of sparse matrix - some data unread, check if no EOL at the end of file.");
+	}
+
+	SparseMatrix matrix;
+	matrix.cells = cells;
+	matrix.nrow = row_num;
+	matrix.ncol = col_num;
+	return matrix;
+}
+
+SparseMatrix readCSR(FILE * stream) {
+	int row_num, col_num, nz_num, max_num_nz_row;
+	if (fscanf(stream, "%d %d %d %d ", &row_num, &col_num, &nz_num, &max_num_nz_row) != 4) {
+		throw runtime_error("Wrong format of sparse matrix - header");
+	}
+	vector<cell> cells(nz_num);
+
+	for (int i = 0; i < nz_num; i++) {
+		if (fscanf(stream, "%lf ", &cells[i].v) != 1) {
 			throw runtime_error("Wrong format of sparse matrix - values");
 		}
 	}
@@ -85,7 +146,7 @@ SparseMatrix readCSR(FILE * stream) {
 		throw runtime_error("Wrong format of sparse matrix - offset omit");
 	}
 	for (int row_i = 0; row_i < row_num; row_i++) {
-		if ( fscanf(stream, "%d ", &offset) != 1 ) {
+		if (fscanf(stream, "%d ", &offset) != 1) {
 			throw runtime_error("Wrong format of sparse matrix - offset");
 		}
 		for (; cell_i < offset; cell_i++) {
@@ -95,7 +156,7 @@ SparseMatrix readCSR(FILE * stream) {
 
 	// JA
 	for (int i = 0; i < nz_num; i++) {
-		if ( fscanf(stream, "%d ", &cells[i].y) != 1 ) {
+		if (fscanf(stream, "%d ", &cells[i].y) != 1) {
 			throw runtime_error("Wrong format of sparse matrix - columns");
 		}
 	}
@@ -109,7 +170,6 @@ SparseMatrix readCSR(FILE * stream) {
 	matrix.ncol = col_num;
 	return matrix;
 }
-
 
 vector<sparse_type> colChunks(const SparseMatrix &sparse, int n) {
 	vector<sparse_type> chunks(n);
@@ -138,13 +198,12 @@ vector<sparse_type> colChunks(const SparseMatrix &sparse, int n) {
 	return chunks;
 }
 
-
 int main(int argc, char * argv[]) {
 	if (true) {
 		/*FILE * pFile = fopen("../sparse1.in", "r");
-		auto tmp = readCSR(pFile);
-		printSparse(tmp);
-		return 0;*/
+		 auto tmp = readCSR(pFile);
+		 printSparse(tmp);
+		 return 0;*/
 	}
 
 	int show_results = 0;
@@ -176,21 +235,37 @@ int main(int argc, char * argv[]) {
 				break;
 			case 'f':
 				if ((mpi_rank) == 0) {
-					FILE * pFile = fopen(optarg, "r");
-					if (pFile == NULL) {
+					//FILE * pFile = fopen(optarg, "r");
+//					if (pFile == NULL) {
+//											fprintf(stderr, "Cannot open sparse matrix file %s\n", optarg);
+//											MPI_Finalize();
+//											return 3;
+//					}
+					// Process 0 reads the CSR sparse matrix
+//					try {
+//						sparse = readCSR(pFile);
+//					} catch (runtime_error const& e) {
+//						fprintf(stderr, "%s : %s", e.what(), optarg);
+//						MPI_Finalize();
+//						return 3;
+//					}
+//					fclose(pFile);
+
+					ifstream txtFile;
+					txtFile.open(optarg, ifstream::in);
+					if (!txtFile.is_open()) {
 						fprintf(stderr, "Cannot open sparse matrix file %s\n", optarg);
 						MPI_Finalize();
 						return 3;
 					}
-					// Process 0 reads the CSR sparse matrix
 					try {
-						sparse = readCSR(pFile);
+						sparse = readCSR(txtFile);
 					} catch (runtime_error const& e) {
 						fprintf(stderr, "%s : %s", e.what(), optarg);
 						MPI_Finalize();
 						return 3;
 					}
-					fclose(pFile);
+					txtFile.close();
 				}
 				break;
 			case 'c':
@@ -212,27 +287,44 @@ int main(int argc, char * argv[]) {
 				return 3;
 		}
 	}
-	if ((gen_seed == -1) || ((mpi_rank == 0) && sparse.isEmpty() )) {
+	if ((gen_seed == -1) || ((mpi_rank == 0) && sparse.isEmpty())) {
 		fprintf(stderr, "error: missing seed or sparse matrix file; exiting\n");
 		MPI_Finalize();
 		return 3;
 	}
 
 	// init MPI
-	commitSparseCellType();
-
-	// prepare sparse chunks to scatter
-	vector<sparse_type> sparse_chunks;
-	if ((mpi_rank) == 0) {
-		sparse_chunks = colChunks(sparse, num_processes);
-	} else {
-		// TODO
-	}
+	auto MPI_SPARSE_CELL = commitSparseCellType();
 
 	comm_start = MPI_Wtime();
 // FIXME: scatter sparse matrix; cache sparse matrix; cache dense matrix
+	sparse_type my_sparse_chunk;
+
 	if ((mpi_rank) == 0) {
-//		scatterSparse(sparse);
+		// prepare sparse chunks to scatter
+		vector<sparse_type> sparse_chunks;
+
+		sparse_chunks = colChunks(sparse, num_processes);
+
+		my_sparse_chunk = sparse_chunks[0];
+		for (int proc = 1; proc < num_processes; proc++) {
+			if (sparse_chunks[proc].empty()) {
+				continue;
+			}
+			cell * data = sparse_chunks[proc].data();
+			MPI_Request req;
+			MPI_Isend(data, sparse_chunks[proc].size(), MPI_SPARSE_CELL, proc, 1, MPI::COMM_WORLD, &req);
+			MPI_Request_free(&req);
+		}
+	} else {
+		MPI_Request req;
+
+		int incoming_size = 2; //FIXME
+		my_sparse_chunk.resize(incoming_size);
+		MPI_Irecv(my_sparse_chunk.data(), incoming_size, MPI_SPARSE_CELL, 0, 1, MPI::COMM_WORLD, &req);
+		deb(my_sparse_chunk.size());
+		deb(my_sparse_chunk[0]);
+		MPI_Request_free(&req);
 	}
 //	MPI_Gather(&my_sparse, 1, MPI_DOUBLE, sub_avgs, 1, MPI_FLOAT, 0,
 //				MPI_COMM_WORLD);
@@ -240,7 +332,16 @@ int main(int argc, char * argv[]) {
 	MPI_Barrier(MPI_COMM_WORLD);
 	comm_end = MPI_Wtime();
 
+	if ( debon ) {
+		deb(mpi_rank);
+		printf("Send sparse time %.5f", comm_end - comm_start);
+		debv(my_sparse_chunk);
+	}
+
+	//MPI_Type_free(&MPI_SPARSE_CELL );
+
 	comp_start = MPI_Wtime();
+
 // compute C = A ( A ... (AB ) )
 // exchange sparse columns within columns group
 // (p_1, ..., p_c); (p_c+1, ..., p_2*c); ...

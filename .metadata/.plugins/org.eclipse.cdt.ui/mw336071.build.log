@@ -1,53 +1,41 @@
-01:47:33 **** Incremental Build of configuration Default for project mw336071 ****
+14:20:24 **** Incremental Build of configuration Default for project mw336071 ****
 make all 
 mpic++ -Wall -c --std=c++11 -O3 -o matrixmul.o matrixmul.cpp 
 matrixmul.cpp: In function ‘int main(int, char**)’:
-matrixmul.cpp:151:6: warning: variable ‘use_inner’ set but not used [-Wunused-but-set-variable]
+matrixmul.cpp:210:6: warning: variable ‘use_inner’ set but not used [-Wunused-but-set-variable]
   int use_inner = 0;
       ^
-matrixmul.cpp:153:6: warning: variable ‘repl_fact’ set but not used [-Wunused-but-set-variable]
+matrixmul.cpp:212:6: warning: variable ‘repl_fact’ set but not used [-Wunused-but-set-variable]
   int repl_fact = 1;
       ^
-matrixmul.cpp:157:9: warning: variable ‘comm_start’ set but not used [-Wunused-but-set-variable]
-  double comm_start = 0, comm_end = 0, comp_start = 0, comp_end = 0;
-         ^
-matrixmul.cpp:157:25: warning: variable ‘comm_end’ set but not used [-Wunused-but-set-variable]
-  double comm_start = 0, comm_end = 0, comp_start = 0, comp_end = 0;
-                         ^
-matrixmul.cpp:157:39: warning: variable ‘comp_start’ set but not used [-Wunused-but-set-variable]
+matrixmul.cpp:216:39: warning: variable ‘comp_start’ set but not used [-Wunused-but-set-variable]
   double comm_start = 0, comm_end = 0, comp_start = 0, comp_end = 0;
                                        ^
-matrixmul.cpp:157:55: warning: variable ‘comp_end’ set but not used [-Wunused-but-set-variable]
+matrixmul.cpp:216:55: warning: variable ‘comp_end’ set but not used [-Wunused-but-set-variable]
   double comm_start = 0, comm_end = 0, comp_start = 0, comp_end = 0;
                                                        ^
-matrixmul.cpp:161:9: warning: variable ‘ge_element’ set but not used [-Wunused-but-set-variable]
+matrixmul.cpp:220:9: warning: variable ‘ge_element’ set but not used [-Wunused-but-set-variable]
   double ge_element = 0;
          ^
 mpic++ -Wall --std=c++11 -O3 matrixmul.o densematgen.o utils.o -o matrixmul
-mpic++ -Wall -c --std=c++11 -g -o matrixmul_deb.o matrixmul.cpp 
+mpic++ -Wall -c --std=c++11 -g -ggdb -o matrixmul_deb.o matrixmul.cpp 
 matrixmul.cpp: In function ‘int main(int, char**)’:
-matrixmul.cpp:151:6: warning: variable ‘use_inner’ set but not used [-Wunused-but-set-variable]
+matrixmul.cpp:210:6: warning: variable ‘use_inner’ set but not used [-Wunused-but-set-variable]
   int use_inner = 0;
       ^
-matrixmul.cpp:153:6: warning: variable ‘repl_fact’ set but not used [-Wunused-but-set-variable]
+matrixmul.cpp:212:6: warning: variable ‘repl_fact’ set but not used [-Wunused-but-set-variable]
   int repl_fact = 1;
       ^
-matrixmul.cpp:157:9: warning: variable ‘comm_start’ set but not used [-Wunused-but-set-variable]
-  double comm_start = 0, comm_end = 0, comp_start = 0, comp_end = 0;
-         ^
-matrixmul.cpp:157:25: warning: variable ‘comm_end’ set but not used [-Wunused-but-set-variable]
-  double comm_start = 0, comm_end = 0, comp_start = 0, comp_end = 0;
-                         ^
-matrixmul.cpp:157:39: warning: variable ‘comp_start’ set but not used [-Wunused-but-set-variable]
+matrixmul.cpp:216:39: warning: variable ‘comp_start’ set but not used [-Wunused-but-set-variable]
   double comm_start = 0, comm_end = 0, comp_start = 0, comp_end = 0;
                                        ^
-matrixmul.cpp:157:55: warning: variable ‘comp_end’ set but not used [-Wunused-but-set-variable]
+matrixmul.cpp:216:55: warning: variable ‘comp_end’ set but not used [-Wunused-but-set-variable]
   double comm_start = 0, comm_end = 0, comp_start = 0, comp_end = 0;
                                                        ^
-matrixmul.cpp:161:9: warning: variable ‘ge_element’ set but not used [-Wunused-but-set-variable]
+matrixmul.cpp:220:9: warning: variable ‘ge_element’ set but not used [-Wunused-but-set-variable]
   double ge_element = 0;
          ^
-mpic++ -Wall --std=c++11 -g matrixmul_deb.o densematgen.o utils.o -o matrixmul_deb
+mpic++ -Wall --std=c++11 -g -ggdb matrixmul_deb.o densematgen.o utils.o -o matrixmul_deb
 
-01:47:35 Build Finished (took 1s.917ms)
+14:20:26 Build Finished (took 2s.127ms)
 

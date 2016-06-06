@@ -15,13 +15,13 @@ matrixmul: matrixmul.o $(MATGENFILE) $(DEPEN)
 	$(CXX) $(LDFLAGS) -O3 $^ -o $@
 
 matrixmul_deb: matrixmul_deb.o $(MATGENFILE) $(DEPEN_DEB)
-	$(CXX) $(LDFLAGS) -g $^ -o $@
+	$(CXX) $(LDFLAGS) -g -ggdb $^ -o $@
 
 matrixmul.o: matrixmul.cpp densematgen.h $(DEPEN_H) Makefile
 	$(CXX) $(CXXFLAGS) -O3 -o $@ $< 
 
 matrixmul_deb.o: matrixmul.cpp densematgen.h $(DEPEN_H) Makefile
-	$(CXX) $(CXXFLAGS) -g -o $@ $< 
+	$(CXX) $(CXXFLAGS) -g -ggdb -o $@ $< 
 
 utils.o: utils.cpp Makefile
 	$(CXX) $(CXXFLAGS) -O3 -o $@ $< 	
