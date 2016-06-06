@@ -171,12 +171,27 @@ SparseMatrix readCSR(FILE * stream) {
 	return matrix;
 }
 
+SparseMatrix readCSR(char* path) {
+//	FILE * pFile = fopen(optarg, "r");
+//	if (pFile == NULL) {
+//		throw runtime_error("Cannot open sparse matrix file " + path);
+//	}
+//	SparseMatrix sparse = readCSR(pFile);
+//	fclose(pFile);
+
+	ifstream txtFile;
+	txtFile.open(path, ifstream::in);
+	if (!txtFile.is_open()) {
+		throw runtime_error("Cannot open sparse matrix file " + string(path));
+	}
+	SparseMatrix sparse = readCSR(txtFile);
+	txtFile.close();
+	return sparse;
+}
+
 vector<sparse_type> colChunks(const SparseMatrix &sparse, int n) {
 	vector<sparse_type> chunks(n);
 	map<int, sparse_type> columns;
-	//vector<int> columns;
-	//for_each(sparse.begin(), sparse.end(), [&](cell& e) { columns.push_back(e.y); });
-	//sort(sparse.begin(), sparse.end(), byYcmp) {}
 	for (auto& a : sparse.cells) {
 		columns[a.y].push_back(a);
 	}
@@ -196,6 +211,37 @@ vector<sparse_type> colChunks(const SparseMatrix &sparse, int n) {
 	}
 
 	return chunks;
+}
+
+
+sparse_type sparseIsendIrecv(const SparseMatrix& sparse, MPI_Datatype MPI_SPARSE_CELL, int num_processes, int mpi_rank) {
+	sparse_type my_sparse_chunk;
+	if ((mpi_rank) == 0) {
+		// prepare sparse chunks to scatter
+		vector<sparse_type> sparse_chunks;
+		sparse_chunks = colChunks(sparse, num_processes);
+		my_sparse_chunk = sparse_chunks[0];
+
+		for (int proc = 1; proc < num_processes; proc++) {
+			cell * data = sparse_chunks[proc].data();
+//			deb(proc); debt(data, sparse_chunks[proc].size());
+			MPI_Request req;
+			MPI_Isend(data, sparse_chunks[proc].size(), MPI_SPARSE_CELL, proc, 0, MPI_COMM_WORLD, &req);
+			MPI_Request_free(&req);
+		}
+	} else {
+		MPI_Request req;
+		MPI_Status status;
+		int incoming_size;
+
+		MPI_Probe(0, 0, MPI::COMM_WORLD, &status);
+		MPI_Get_count(&status, MPI_SPARSE_CELL, &incoming_size);
+		deb(mpi_rank); deb(incoming_size);
+		my_sparse_chunk.resize(incoming_size);
+		MPI_Irecv(my_sparse_chunk.data(), incoming_size, MPI_SPARSE_CELL, 0, 0, MPI_COMM_WORLD, &req);
+		MPI_Request_free(&req);
+	}
+	return my_sparse_chunk;
 }
 
 int main(int argc, char * argv[]) {
@@ -228,37 +274,13 @@ int main(int argc, char * argv[]) {
 				break;
 			case 'f':
 				if ((mpi_rank) == 0) {
-					//FILE * pFile = fopen(optarg, "r");
-//					if (pFile == NULL) {
-//											fprintf(stderr, "Cannot open sparse matrix file %s\n", optarg);
-//											MPI_Finalize();
-//											return 3;
-//					}
-					// Process 0 reads the CSR sparse matrix
-//					try {
-//						sparse = readCSR(pFile);
-//					} catch (runtime_error const& e) {
-//						fprintf(stderr, "%s : %s", e.what(), optarg);
-//						MPI_Finalize();
-//						return 3;
-//					}
-//					fclose(pFile);
-
-					ifstream txtFile;
-					txtFile.open(optarg, ifstream::in);
-					if (!txtFile.is_open()) {
-						fprintf(stderr, "Cannot open sparse matrix file %s\n", optarg);
-						MPI_Finalize();
-						return 3;
-					}
 					try {
-						sparse = readCSR(txtFile);
+						sparse = readCSR(optarg);
 					} catch (runtime_error const& e) {
 						fprintf(stderr, "%s : %s", e.what(), optarg);
 						MPI_Finalize();
 						return 3;
 					}
-					txtFile.close();
 				}
 				break;
 			case 'c':
@@ -289,34 +311,10 @@ int main(int argc, char * argv[]) {
 	comm_start = MPI_Wtime();
 // FIXME: scatter sparse matrix; cache sparse matrix; cache dense matrix
 	sparse_type my_sparse_chunk;
+//	my_sparse_chunk = sparseScatterV(sparse, MPI_SPARSE_CELL, num_processes, mpi_rank);
+	my_sparse_chunk = sparseIsendIrecv(sparse, MPI_SPARSE_CELL, num_processes, mpi_rank);
 
-	if ((mpi_rank) == 0) {
-		// prepare sparse chunks to scatter
-		vector<sparse_type> sparse_chunks;
-		sparse_chunks = colChunks(sparse, num_processes);
 
-		my_sparse_chunk = sparse_chunks[0];
-		for (int proc = 1; proc < num_processes; proc++) {
-			if (sparse_chunks[proc].empty()) {
-				continue;
-			}
-			cell * data = sparse_chunks[proc].data();
-			deb(proc); debt(data, sparse_chunks[proc].size());
-			MPI_Request req;
-			MPI_Isend(data, sparse_chunks[proc].size(), MPI_SPARSE_CELL, proc, 0, MPI_COMM_WORLD, &req);
-			MPI_Request_free(&req);
-		}
-	} else {
-		MPI_Request req;
-		MPI_Status status;
-		MPI_Probe(0, 0, MPI::COMM_WORLD, &status);
-		int incoming_size;
-		MPI_Get_count(&status, MPI_SPARSE_CELL, &incoming_size);
-		deb(mpi_rank); deb(incoming_size);
-		my_sparse_chunk.resize(incoming_size);
-		MPI_Irecv(my_sparse_chunk.data(), incoming_size, MPI_SPARSE_CELL, 0, 0, MPI_COMM_WORLD, &req);
-		MPI_Request_free(&req);
-	}
 //	MPI_Gather(&my_sparse, 1, MPI_DOUBLE, sub_avgs, 1, MPI_FLOAT, 0,
 //				MPI_COMM_WORLD);
 
@@ -324,9 +322,9 @@ int main(int argc, char * argv[]) {
 	comm_end = MPI_Wtime();
 
 	if ( debon ) {
-		deb(mpi_rank);
-		printf("Send sparse time %.5f", comm_end - comm_start);
-		debv(my_sparse_chunk);
+		//printf("Send sparse time %d: %.5f\n", mpi_rank, comm_end - comm_start);
+		printf("%.5f\n", comm_end - comm_start);
+//		debv(my_sparse_chunk);
 	}
 
 	//MPI_Type_free(&MPI_SPARSE_CELL );

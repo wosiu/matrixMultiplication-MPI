@@ -8186,3 +8186,148 @@ org.eclipse.core.runtime.CoreException: Cannot process for your request due to s
 	at org.eclipse.core.internal.jobs.Worker.run(Worker.java:55)
 !SUBENTRY 1 org.eclipse.ptp.launch 4 4 2016-06-06 15:28:16.291
 !MESSAGE Cannot process for your request due to session is exiting or exited.
+
+!ENTRY org.eclipse.ptp.launch 4 4 2016-06-06 15:32:56.907
+!MESSAGE Cannot process for your request due to session is exiting or exited.
+!STACK 1
+org.eclipse.core.runtime.CoreException: Cannot process for your request due to session is exiting or exited.
+	at org.eclipse.ptp.launch.ParallelLaunchConfigurationDelegate.terminateDebugSession(ParallelLaunchConfigurationDelegate.java:285)
+	at org.eclipse.ptp.launch.ParallelLaunchConfigurationDelegate.doCleanupLaunch(ParallelLaunchConfigurationDelegate.java:105)
+	at org.eclipse.ptp.launch.AbstractParallelLaunchConfigurationDelegate$JobSubmission.run(AbstractParallelLaunchConfigurationDelegate.java:159)
+	at org.eclipse.core.internal.jobs.Worker.run(Worker.java:55)
+!SUBENTRY 1 org.eclipse.ptp.launch 4 4 2016-06-06 15:32:56.907
+!MESSAGE Cannot process for your request due to session is exiting or exited.
+
+!ENTRY org.eclipse.ltk.ui.refactoring 4 10000 2016-06-06 15:53:46.469
+!MESSAGE Internal Error
+!STACK 0
+java.lang.reflect.InvocationTargetException
+	at org.eclipse.jface.operation.ModalContext.run(ModalContext.java:420)
+	at org.eclipse.jface.dialogs.ProgressMonitorDialog.run(ProgressMonitorDialog.java:500)
+	at org.eclipse.ui.internal.progress.ProgressMonitorJobsDialog.run(ProgressMonitorJobsDialog.java:284)
+	at org.eclipse.ui.internal.progress.ProgressManager$3.run(ProgressManager.java:997)
+	at org.eclipse.swt.custom.BusyIndicator.showWhile(BusyIndicator.java:70)
+	at org.eclipse.ui.internal.progress.ProgressManager.busyCursorWhile(ProgressManager.java:1032)
+	at org.eclipse.ui.internal.progress.ProgressManager.busyCursorWhile(ProgressManager.java:1007)
+	at org.eclipse.ltk.ui.refactoring.RefactoringWizardOpenOperation.checkInitialConditions(RefactoringWizardOpenOperation.java:215)
+	at org.eclipse.ltk.ui.refactoring.RefactoringWizardOpenOperation.access$1(RefactoringWizardOpenOperation.java:210)
+	at org.eclipse.ltk.ui.refactoring.RefactoringWizardOpenOperation$1.run(RefactoringWizardOpenOperation.java:170)
+	at org.eclipse.swt.custom.BusyIndicator.showWhile(BusyIndicator.java:70)
+	at org.eclipse.ltk.ui.refactoring.RefactoringWizardOpenOperation.run(RefactoringWizardOpenOperation.java:202)
+	at org.eclipse.ltk.ui.refactoring.RefactoringWizardOpenOperation.run(RefactoringWizardOpenOperation.java:122)
+	at org.eclipse.cdt.internal.ui.refactoring.RefactoringStarter.activate(RefactoringStarter.java:33)
+	at org.eclipse.cdt.internal.ui.refactoring.RefactoringRunner.run(RefactoringRunner.java:43)
+	at org.eclipse.cdt.internal.ui.refactoring.extractfunction.ExtractFunctionRefactoringRunner.run(ExtractFunctionRefactoringRunner.java:39)
+	at org.eclipse.cdt.ui.refactoring.actions.ExtractFunctionAction.run(ExtractFunctionAction.java:43)
+	at org.eclipse.cdt.ui.refactoring.actions.RefactoringAction.run(RefactoringAction.java:84)
+	at org.eclipse.jface.action.Action.runWithEvent(Action.java:473)
+	at org.eclipse.jface.action.ActionContributionItem.handleWidgetSelection(ActionContributionItem.java:595)
+	at org.eclipse.jface.action.ActionContributionItem.access$2(ActionContributionItem.java:511)
+	at org.eclipse.jface.action.ActionContributionItem$5.handleEvent(ActionContributionItem.java:420)
+	at org.eclipse.swt.widgets.EventTable.sendEvent(EventTable.java:84)
+	at org.eclipse.swt.widgets.Display.sendEvent(Display.java:4481)
+	at org.eclipse.swt.widgets.Widget.sendEvent(Widget.java:1329)
+	at org.eclipse.swt.widgets.Display.runDeferredEvents(Display.java:3819)
+	at org.eclipse.swt.widgets.Display.readAndDispatch(Display.java:3430)
+	at org.eclipse.e4.ui.internal.workbench.swt.PartRenderingEngine$4.run(PartRenderingEngine.java:1127)
+	at org.eclipse.core.databinding.observable.Realm.runWithDefault(Realm.java:337)
+	at org.eclipse.e4.ui.internal.workbench.swt.PartRenderingEngine.run(PartRenderingEngine.java:1018)
+	at org.eclipse.e4.ui.internal.workbench.E4Workbench.createAndRunUI(E4Workbench.java:156)
+	at org.eclipse.ui.internal.Workbench$5.run(Workbench.java:694)
+	at org.eclipse.core.databinding.observable.Realm.runWithDefault(Realm.java:337)
+	at org.eclipse.ui.internal.Workbench.createAndRunWorkbench(Workbench.java:606)
+	at org.eclipse.ui.PlatformUI.createAndRunWorkbench(PlatformUI.java:150)
+	at org.eclipse.ui.internal.ide.application.IDEApplication.start(IDEApplication.java:139)
+	at org.eclipse.equinox.internal.app.EclipseAppHandle.run(EclipseAppHandle.java:196)
+	at org.eclipse.core.runtime.internal.adaptor.EclipseAppLauncher.runApplication(EclipseAppLauncher.java:134)
+	at org.eclipse.core.runtime.internal.adaptor.EclipseAppLauncher.start(EclipseAppLauncher.java:104)
+	at org.eclipse.core.runtime.adaptor.EclipseStarter.run(EclipseStarter.java:380)
+	at org.eclipse.core.runtime.adaptor.EclipseStarter.run(EclipseStarter.java:235)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+	at org.eclipse.equinox.launcher.Main.invokeFramework(Main.java:669)
+	at org.eclipse.equinox.launcher.Main.basicRun(Main.java:608)
+	at org.eclipse.equinox.launcher.Main.run(Main.java:1515)
+	at org.eclipse.equinox.launcher.Main.main(Main.java:1488)
+Caused by: java.lang.NullPointerException
+	at org.eclipse.cdt.internal.core.dom.rewrite.astwriter.ASTWriterVisitor.visit(ASTWriterVisitor.java:159)
+	at org.eclipse.cdt.internal.core.dom.parser.cpp.CPPASTName.accept(CPPASTName.java:167)
+	at org.eclipse.cdt.internal.core.dom.rewrite.astwriter.DeclaratorWriter.writeDefaultDeclarator(DeclaratorWriter.java:81)
+	at org.eclipse.cdt.internal.core.dom.rewrite.astwriter.DeclaratorWriter.writeCPPDeclarator(DeclaratorWriter.java:330)
+	at org.eclipse.cdt.internal.core.dom.rewrite.astwriter.DeclaratorWriter.writeDeclarator(DeclaratorWriter.java:68)
+	at org.eclipse.cdt.internal.core.dom.rewrite.astwriter.ASTWriterVisitor.visit(ASTWriterVisitor.java:234)
+	at org.eclipse.cdt.internal.core.dom.parser.cpp.CPPASTDeclarator.accept(CPPASTDeclarator.java:166)
+	at org.eclipse.cdt.internal.core.dom.rewrite.astwriter.ASTWriterVisitor.visit(ASTWriterVisitor.java:264)
+	at org.eclipse.cdt.internal.core.dom.parser.cpp.CPPASTParameterDeclaration.accept(CPPASTParameterDeclaration.java:93)
+	at org.eclipse.cdt.internal.ui.refactoring.NameInformation.getTypeName(NameInformation.java:221)
+	at org.eclipse.cdt.internal.ui.refactoring.extractfunction.ExtractFunctionRefactoring.checkParameterAndReturnTypes(ExtractFunctionRefactoring.java:978)
+	at org.eclipse.cdt.internal.ui.refactoring.extractfunction.ExtractFunctionRefactoring.checkInitialConditions(ExtractFunctionRefactoring.java:196)
+	at org.eclipse.ltk.core.refactoring.CheckConditionsOperation.run(CheckConditionsOperation.java:83)
+	at org.eclipse.core.internal.resources.Workspace.run(Workspace.java:2241)
+	at org.eclipse.ltk.internal.ui.refactoring.WorkbenchRunnableAdapter.run(WorkbenchRunnableAdapter.java:87)
+	at org.eclipse.jface.operation.ModalContext$ModalContextThread.run(ModalContext.java:119)
+Root exception:
+java.lang.NullPointerException
+	at org.eclipse.cdt.internal.core.dom.rewrite.astwriter.ASTWriterVisitor.visit(ASTWriterVisitor.java:159)
+	at org.eclipse.cdt.internal.core.dom.parser.cpp.CPPASTName.accept(CPPASTName.java:167)
+	at org.eclipse.cdt.internal.core.dom.rewrite.astwriter.DeclaratorWriter.writeDefaultDeclarator(DeclaratorWriter.java:81)
+	at org.eclipse.cdt.internal.core.dom.rewrite.astwriter.DeclaratorWriter.writeCPPDeclarator(DeclaratorWriter.java:330)
+	at org.eclipse.cdt.internal.core.dom.rewrite.astwriter.DeclaratorWriter.writeDeclarator(DeclaratorWriter.java:68)
+	at org.eclipse.cdt.internal.core.dom.rewrite.astwriter.ASTWriterVisitor.visit(ASTWriterVisitor.java:234)
+	at org.eclipse.cdt.internal.core.dom.parser.cpp.CPPASTDeclarator.accept(CPPASTDeclarator.java:166)
+	at org.eclipse.cdt.internal.core.dom.rewrite.astwriter.ASTWriterVisitor.visit(ASTWriterVisitor.java:264)
+	at org.eclipse.cdt.internal.core.dom.parser.cpp.CPPASTParameterDeclaration.accept(CPPASTParameterDeclaration.java:93)
+	at org.eclipse.cdt.internal.ui.refactoring.NameInformation.getTypeName(NameInformation.java:221)
+	at org.eclipse.cdt.internal.ui.refactoring.extractfunction.ExtractFunctionRefactoring.checkParameterAndReturnTypes(ExtractFunctionRefactoring.java:978)
+	at org.eclipse.cdt.internal.ui.refactoring.extractfunction.ExtractFunctionRefactoring.checkInitialConditions(ExtractFunctionRefactoring.java:196)
+	at org.eclipse.ltk.core.refactoring.CheckConditionsOperation.run(CheckConditionsOperation.java:83)
+	at org.eclipse.core.internal.resources.Workspace.run(Workspace.java:2241)
+	at org.eclipse.ltk.internal.ui.refactoring.WorkbenchRunnableAdapter.run(WorkbenchRunnableAdapter.java:87)
+	at org.eclipse.jface.operation.ModalContext$ModalContextThread.run(ModalContext.java:119)
+
+!ENTRY org.eclipse.epp.logging.aeri.ide 1 1 2016-06-06 15:53:56.206
+!MESSAGE Added ‘Internal Error’ under ‘1342eaf8a884395d1d5424086d92b78b’ to local history at /home/m/studia/PWiR/matrix/ecl…aeri.ide.server/local-history. ; version: 1.100.0.v20160217-0435
+!STACK 0
+org.eclipse.epp.logging.aeri.core.util.Logs$LogTraceException
+	at org.eclipse.epp.logging.aeri.core.util.Logs$LogTraceException.newTrace(Logs.java:383)
+	at org.eclipse.epp.logging.aeri.core.util.Logs.log(Logs.java:134)
+	at org.eclipse.epp.internal.logging.aeri.ide.server.LocalReportsHistory.doRemember(LocalReportsHistory.java:137)
+	at org.eclipse.epp.internal.logging.aeri.ide.server.LocalReportsHistory.remember(LocalReportsHistory.java:119)
+	at org.eclipse.epp.internal.logging.aeri.ide.server.mars.ServerConnection.submit(ServerConnection.java:191)
+	at org.eclipse.epp.internal.logging.aeri.ide.utils.UploadReportsScheduler.send(UploadReportsScheduler.java:52)
+	at org.eclipse.epp.internal.logging.aeri.ide.utils.UploadReportsScheduler.send(UploadReportsScheduler.java:69)
+	at org.eclipse.epp.internal.logging.aeri.ide.IDEStartup$2.send(IDEStartup.java:107)
+	at org.eclipse.epp.internal.logging.aeri.ide.utils.UploadReportsScheduler$UploadJob.run(UploadReportsScheduler.java:106)
+	at org.eclipse.core.internal.jobs.Worker.run(Worker.java:55)
+
+!ENTRY org.eclipse.epp.logging.aeri.ide 1 1 2016-06-06 15:53:56.535
+!MESSAGE Added ‘Unable to create part’ under ‘98565d0e45cce40cac02e33ba398b7a5’ to local history at /home/m/studia/PWiR/matrix/ecl…aeri.ide.server/local-history. ; version: 1.100.0.v20160217-0435
+!STACK 0
+org.eclipse.epp.logging.aeri.core.util.Logs$LogTraceException
+	at org.eclipse.epp.logging.aeri.core.util.Logs$LogTraceException.newTrace(Logs.java:383)
+	at org.eclipse.epp.logging.aeri.core.util.Logs.log(Logs.java:134)
+	at org.eclipse.epp.internal.logging.aeri.ide.server.LocalReportsHistory.doRemember(LocalReportsHistory.java:137)
+	at org.eclipse.epp.internal.logging.aeri.ide.server.LocalReportsHistory.remember(LocalReportsHistory.java:119)
+	at org.eclipse.epp.internal.logging.aeri.ide.server.mars.ServerConnection.submit(ServerConnection.java:191)
+	at org.eclipse.epp.internal.logging.aeri.ide.utils.UploadReportsScheduler.send(UploadReportsScheduler.java:52)
+	at org.eclipse.epp.internal.logging.aeri.ide.utils.UploadReportsScheduler.send(UploadReportsScheduler.java:69)
+	at org.eclipse.epp.internal.logging.aeri.ide.IDEStartup$2.send(IDEStartup.java:107)
+	at org.eclipse.epp.internal.logging.aeri.ide.utils.UploadReportsScheduler$UploadJob.run(UploadReportsScheduler.java:106)
+	at org.eclipse.core.internal.jobs.Worker.run(Worker.java:55)
+
+!ENTRY org.eclipse.epp.logging.aeri.ide 1 1 2016-06-06 15:53:56.796
+!MESSAGE Added ‘Internal error logged from PDI Debug: ’ under ‘7c90b20dffe7a0ba61eb5fd512357291’ to local history at /home/m/studia/PWiR/matrix/ecl…aeri.ide.server/local-history. ; version: 1.100.0.v20160217-0435
+!STACK 0
+org.eclipse.epp.logging.aeri.core.util.Logs$LogTraceException
+	at org.eclipse.epp.logging.aeri.core.util.Logs$LogTraceException.newTrace(Logs.java:383)
+	at org.eclipse.epp.logging.aeri.core.util.Logs.log(Logs.java:134)
+	at org.eclipse.epp.internal.logging.aeri.ide.server.LocalReportsHistory.doRemember(LocalReportsHistory.java:137)
+	at org.eclipse.epp.internal.logging.aeri.ide.server.LocalReportsHistory.remember(LocalReportsHistory.java:119)
+	at org.eclipse.epp.internal.logging.aeri.ide.server.mars.ServerConnection.submit(ServerConnection.java:191)
+	at org.eclipse.epp.internal.logging.aeri.ide.utils.UploadReportsScheduler.send(UploadReportsScheduler.java:52)
+	at org.eclipse.epp.internal.logging.aeri.ide.utils.UploadReportsScheduler.send(UploadReportsScheduler.java:69)
+	at org.eclipse.epp.internal.logging.aeri.ide.IDEStartup$2.send(IDEStartup.java:107)
+	at org.eclipse.epp.internal.logging.aeri.ide.utils.UploadReportsScheduler$UploadJob.run(UploadReportsScheduler.java:106)
+	at org.eclipse.core.internal.jobs.Worker.run(Worker.java:55)

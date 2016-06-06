@@ -2,7 +2,10 @@ eclipse.preferences.version=1
 remoteLaunchConfig/matrixmul\ Par=org.eclipse.remote.LocalServices\:Local
 remoteLaunchConfig/matrixmul\ Par\ (=org.eclipse.remote.LocalServices\:Local
 remoteLaunchConfig/matrixmul\ Par\ (1)=org.eclipse.remote.LocalServices\:Local
+remoteLaunchConfig/matrixmul\ Par\ 3=org.eclipse.remote.LocalServices\:Local
 remoteLaunchConfig/matrixmul\ Par\ DE=org.eclipse.remote.LocalServices\:Local
 remoteLaunchConfig/matrixmul\ Par\ DEB=org.eclipse.remote.LocalServices\:Local
 remoteLaunchConfig/matrixmul\ Par\ DEV=org.eclipse.remote.LocalServices\:Local
+remoteLaunchConfig/matrixmul\ Par\ p\=3=org.eclipse.remote.LocalServices\:Local
+remoteLaunchConfig/matrixmul\ Par\ p\=3\ (1)=org.eclipse.remote.LocalServices\:Local
 remoteLaunchType/org.eclipse.ptp.launch.parallelLaunch=org.eclipse.remote.LocalServices\:Local
