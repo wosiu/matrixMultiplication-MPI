@@ -191,15 +191,18 @@ SparseMatrix readCSR(char* path) {
 
 vector<sparse_type> colChunks(const SparseMatrix &sparse, int n) {
 	vector<sparse_type> chunks(n);
-	map<int, sparse_type> columns;
+	map<int, sparse_type> vectors;
+
+	// TODO przerobic na wersje column albo row chunks, dobierac sie do klucza po offsecie struktury, MARGIN = 0/1
+
 	for (auto& a : sparse.cells) {
-		columns[a.y].push_back(a);
+		vectors[a.y].push_back(a);
 	}
-	auto nzColNum = columns.size();
+	auto nzColNum = vectors.size();
 
 	int base = nzColNum / n; // base number of columns for each process
 	int add = nzColNum % n; // number of processes with +1 column than the rest
-	auto cit = columns.begin();
+	auto cit = vectors.begin();
 
 	for (int chunk_id = 0; chunk_id < n; chunk_id++) {
 		int total_col = base + int(chunk_id < add);
@@ -228,6 +231,127 @@ sparse_type sparseIsendIrecv(const SparseMatrix& sparse, MPI_Datatype MPI_SPARSE
 			MPI_Request req;
 			MPI_Isend(data, sparse_chunks[proc].size(), MPI_SPARSE_CELL, proc, 0, MPI_COMM_WORLD, &req);
 			MPI_Request_free(&req);
+		}
+	} else {
+		MPI_Request req;
+		MPI_Status status;
+		int incoming_size;
+
+		MPI_Probe(0, 0, MPI::COMM_WORLD, &status);
+		MPI_Get_count(&status, MPI_SPARSE_CELL, &incoming_size);
+		deb(mpi_rank); deb(incoming_size);
+		my_sparse_chunk.resize(incoming_size);
+		MPI_Irecv(my_sparse_chunk.data(), incoming_size, MPI_SPARSE_CELL, 0, 0, MPI_COMM_WORLD, &req);
+		MPI_Request_free(&req);
+	}
+	return my_sparse_chunk;
+}
+
+sparse_type sparseScatterV(SparseMatrix& sparse, MPI_Datatype MPI_SPARSE_CELL, int num_processes, int mpi_rank) {
+	sparse_type my_sparse_chunk;
+	int chunks_num = 0;
+	vector<sparse_type> sparse_chunks;
+
+	if ((mpi_rank) == 0) {
+		// prepare sparse chunks to scatter
+		sparse_chunks = colChunks(sparse, num_processes);
+		sparse.cells.clear();
+		chunks_num = sparse_chunks.size();
+	}
+
+	cell* sendbuf = NULL;
+	int scounts[chunks_num];
+	int displs[chunks_num];
+
+	if ((mpi_rank) == 0) {
+		// flatten chunks
+		for (int i = 0; i < chunks_num; i++) {
+			sparse.cells.insert(sparse.cells.end(), sparse_chunks[i].begin(), sparse_chunks[i].end());
+			scounts[i] = sparse_chunks[i].size();
+			displs[i] = (i == 0) ? 0 : displs[i-1] + scounts[i-1];
+		}
+//			deb(proc); debt(data, sparse_chunks[proc].size());
+		sendbuf = sparse.cells.data();
+//		deb("after")
+//		deb(sparse.cells.size());
+//		debt(sendbuf, sparse.cells.size());
+	}
+
+	// scatter chunks sizes
+	int mysize = -1;
+	MPI_Scatter(scounts, 1, MPI_INT, &mysize, 1, MPI_INT, 0, MPI_COMM_WORLD );
+//	if (debon) cout << mpi_rank << ": mysize " << mysize << endl;
+	//	if (debon && sendbuf != NULL) { debt(sendbuf, 4); debt(scounts , num_processes); debt(displs , num_processes); }
+
+	my_sparse_chunk.resize(mysize);
+
+	// scatter data
+	MPI_Scatterv(sendbuf, scounts , displs, MPI_SPARSE_CELL,
+			my_sparse_chunk.data(), mysize, MPI_SPARSE_CELL, 0, MPI_COMM_WORLD);
+
+//	deb(my_sparse_chunk.size());
+//	debv(my_sparse_chunk)
+	return my_sparse_chunk;
+}
+
+sparse_type sparseScatterV2(SparseMatrix& sparse, MPI_Datatype MPI_SPARSE_CELL, int num_processes, int mpi_rank) {
+	sparse_type my_sparse_chunk;
+
+	cell* sendbuf = NULL;
+	int scounts[num_processes];
+	int displs[num_processes];
+
+	if ((mpi_rank) == 0) {
+		int nz = sparse.cells.size();
+		sendbuf = sparse.cells.data();
+		int base = nz / num_processes; // base number of columns for each process
+		int add = nz % num_processes; // number of processes with +1 column than the rest
+
+		for ( int i = 0; i < num_processes; i++ ) {
+			scounts[i] = base + int(i < add);
+			displs[i] = (i == 0) ? 0 : displs[i-1] + scounts[i-1];
+		}
+	}
+
+	// scatter chunks sizes
+	int mysize = -1;
+	MPI_Scatter(scounts, 1, MPI_INT, &mysize, 1, MPI_INT, 0, MPI_COMM_WORLD );
+//	if (debon) cout << mpi_rank << ": mysize " << mysize << endl;
+	//	if (debon && sendbuf != NULL) { debt(sendbuf, 4); debt(scounts , num_processes); debt(displs , num_processes); }
+
+	my_sparse_chunk.resize(mysize);
+
+	// scatter data
+	MPI_Scatterv(sendbuf, scounts , displs, MPI_SPARSE_CELL,
+			my_sparse_chunk.data(), mysize, MPI_SPARSE_CELL, 0, MPI_COMM_WORLD);
+
+//	deb(my_sparse_chunk.size());
+//	debv(my_sparse_chunk)
+	return my_sparse_chunk;
+}
+
+
+sparse_type sparseIsendIrecv2(SparseMatrix& sparse, MPI_Datatype MPI_SPARSE_CELL, int num_processes, int mpi_rank) {
+	sparse_type my_sparse_chunk;
+
+	if ((mpi_rank) == 0) {
+		// prepare sparse chunks to scatter
+		cell * data = sparse.cells.data();
+		int nz = sparse.cells.size();
+		int base = nz / num_processes; // base number of columns for each process
+		int add = nz % num_processes; // number of processes with +1 column than the rest
+
+		int rootCount = base + int(0 < add);
+		int offset = rootCount;
+		my_sparse_chunk = sparse_type(data, data + rootCount);
+
+		for (int proc = 1; proc < num_processes; proc++) {
+			int count = base + int(proc < add);
+
+			MPI_Request req;
+			MPI_Isend(data + offset, count, MPI_SPARSE_CELL, proc, 0, MPI_COMM_WORLD, &req);
+			MPI_Request_free(&req);
+			offset += count;
 		}
 	} else {
 		MPI_Request req;
@@ -311,8 +435,11 @@ int main(int argc, char * argv[]) {
 	comm_start = MPI_Wtime();
 // FIXME: scatter sparse matrix; cache sparse matrix; cache dense matrix
 	sparse_type my_sparse_chunk;
-//	my_sparse_chunk = sparseScatterV(sparse, MPI_SPARSE_CELL, num_processes, mpi_rank);
-	my_sparse_chunk = sparseIsendIrecv(sparse, MPI_SPARSE_CELL, num_processes, mpi_rank);
+
+	//my_sparse_chunk = sparseScatterV2(sparse, MPI_SPARSE_CELL, num_processes, mpi_rank);
+	my_sparse_chunk = sparseIsendIrecv2(sparse, MPI_SPARSE_CELL, num_processes, mpi_rank);
+	//my_sparse_chunk = sparseScatterV(sparse, MPI_SPARSE_CELL, num_processes, mpi_rank);
+	//	my_sparse_chunk = sparseIsendIrecv(sparse, MPI_SPARSE_CELL, num_processes, mpi_rank);
 
 
 //	MPI_Gather(&my_sparse, 1, MPI_DOUBLE, sub_avgs, 1, MPI_FLOAT, 0,
@@ -322,8 +449,9 @@ int main(int argc, char * argv[]) {
 	comm_end = MPI_Wtime();
 
 	if ( debon ) {
-		//printf("Send sparse time %d: %.5f\n", mpi_rank, comm_end - comm_start);
+//		printf("Send sparse time %d: %.5f\n", mpi_rank, comm_end - comm_start);
 		printf("%.5f\n", comm_end - comm_start);
+//		deb(my_sparse_chunk.size());
 //		debv(my_sparse_chunk);
 	}
 
