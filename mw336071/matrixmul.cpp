@@ -573,6 +573,9 @@ int main(int argc, char * argv[]) {
 	// gather all chunks within replication group
 	sparse_type repl_sparse_chunk;
 	repl_sparse_chunk.resize(repl_sparse_size);
+
+	// TODO in newer version of MPI there is MPI_Iallgather. That could be improved here with wait after section
+	// which generates dense matrix.
 	MPI_Allgather(my_sparse_chunk.data(), my_sparse_chunk.size(), MPI_SPARSE_CELL, repl_sparse_chunk.data(),
 			repl_sparse_size, MPI_SPARSE_CELL, MPI_COMM_REPL);
 
@@ -640,7 +643,7 @@ int main(int argc, char * argv[]) {
 		swap(my_dense.cells, partial_res.cells); // O(1)
 	}
 
-	MPI_Barrier(MPI_COMM_WORLD);
+//	MPI_Barrier(MPI_COMM_WORLD	);
 	comp_end = MPI_Wtime();
 
 	// send results to root
