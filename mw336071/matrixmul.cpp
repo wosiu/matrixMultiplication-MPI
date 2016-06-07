@@ -5,13 +5,16 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstddef>
-#include <mpi.h>
 #include <cassert>
 #include <getopt.h>
 #include <vector>
 #include <stdexcept>
 #include <algorithm>
 #include <cmath>
+#include <utility>      // std::move (objects)
+
+#include <mpi.h>
+
 #include "densematgen.h"
 #include "utils.h"
 
@@ -66,20 +69,40 @@ public:
 	dense_type cells;
 	int start_col = 0;
 	int start_row = 0;
+	int last_col_excl;
+	int last_row_excl;
 
-	// Init matrix with 0
+
+	// Initialize matrix with 0
 	DenseMatrix(int nrow, int ncol, int start_row = 0, int start_col = 0) : Matrix() {
 		this->cells = dense_type (nrow, vector<double>(ncol, 0));
 		this->nrow = nrow;
 		this->ncol = ncol;
 		this->start_row = start_row;
 		this->start_col = start_col;
+		this->last_row_excl = start_row + nrow;
+		this->last_col_excl = start_col + ncol;
 	}
 
-	double getCell(int x, int y) {
-		x -= this->start_row;
-		y -= this->start_col;
-		return cells[x][y];
+	// Initialize only dimensions, does not copy values
+	DenseMatrix(const DenseMatrix& other) : DenseMatrix(other.nrow, other.ncol, other.start_row, other.start_col) {
+	}
+
+	bool containsCell(int global_x, int global_y) const {
+		return global_x >= start_row && global_y >= start_col && global_x < last_row_excl && global_y < last_col_excl;
+	}
+
+	// unsafe
+	double getCell(int global_x, int global_y) const {
+		global_x -= this->start_row;
+		global_y -= this->start_col;
+		return cells[global_x][global_y];
+	}
+
+	void add(int global_x, int global_y, double v) {
+		global_x -= this->start_row;
+		global_y -= this->start_col;
+		cells[global_x][global_y] += v;
 	}
 
 	void print() const {
@@ -104,6 +127,16 @@ public:
 	}
 };
 
+
+void partialMul(DenseMatrix& C, const SparseMatrix& A, const DenseMatrix& B) {
+	for (auto& sparse: A.cells) {
+		// could avoid starting from start_col by scaling sparse.y -= start.col,, sparse.x -= start.row
+		for (int k = B.start_col; k < B.last_col_excl; k++) {
+			const double v = sparse.v * B.getCell(sparse.y, k);
+			C.add( sparse.x, k, v );
+		}
+	}
+}
 
 DenseMatrix generateDenseSubmatrix(int mpi_rank, int num_processes, int N, int seed) {
 	int base = N / num_processes; // base number of columns for each process
@@ -310,6 +343,7 @@ sparse_type sparseIsendIrecv(const SparseMatrix& sparse, MPI_Datatype MPI_SPARSE
 		deb(incoming_size);
 		my_sparse_chunk.resize(incoming_size);
 		MPI_Irecv(my_sparse_chunk.data(), incoming_size, MPI_SPARSE_CELL, 0, 0, MPI_COMM_WORLD, &req);
+		// TODO Waitall?
 		MPI_Request_free(&req);
 	}
 	return my_sparse_chunk;
@@ -546,32 +580,70 @@ int main(int argc, char * argv[]) {
 
 	comm_end = MPI_Wtime();
 
-	// generate dense
-	DenseMatrix dense = generateDenseSubmatrix(mpi_rank, num_processes, N, gen_seed);
-
 	if ( debon) {
 //		printf("Send sparse time %d: %.5f\n", mpi_rank, comm_end - comm_start);
 		printf("%.5f\n", comm_end - comm_start);
 //		deb(my_sparse_chunk.size());
 //		debv(my_sparse_chunk);
+		deb(repl_sparse_chunk.size());
+		debv(repl_sparse_chunk);
 	}
 
-	//MPI_Type_free(&MPI_SPARSE_CELL );
+
+	SparseMatrix my_sparse;
+	my_sparse.cells = std::move(repl_sparse_chunk);
+	// generate dense
+	DenseMatrix my_dense = generateDenseSubmatrix(mpi_rank, num_processes, N, gen_seed);
+	DenseMatrix partial_res(my_dense); // initialize with 0
 
 	comp_start = MPI_Wtime();
+	const int rounds_num = num_processes / repl_fact;
 
-// compute C = A ( A ... (AB ) )
-// exchange sparse columns within columns group
-// (p_1, ..., p_c); (p_c+1, ..., p_2*c); ...
-// TODO
+	const int next_proc = (mpi_rank + repl_fact) % num_processes;
+	const int prev_proc = (mpi_rank - repl_fact + num_processes) % num_processes;
+	MPI_Request reqs[2];
+	MPI_Status stats[2];
+	int incoming_size;
+	sparse_type sparse_buff;
 
-// dim(dense) == dim(result)
 	for (int exp_i = 0; exp_i < exponent; ++exp_i) {
-//		partialRes(my_sparse, my_dense, &my_result);
+		if (exp_i > 0) {
+			partial_res.setCells(0);
+		}
+
+		for (int r = 0; r < rounds_num; ++r) {
+			MPI_Isend(my_sparse.cells.data(), my_sparse.cells.size(), MPI_SPARSE_CELL,
+					next_proc, 0, MPI_COMM_WORLD,  reqs+0);
+
+			partialMul(partial_res, my_sparse, my_dense); // does not modify my_sparse
+
+			MPI_Probe(prev_proc, 0, MPI_COMM_WORLD, stats+0);
+			MPI_Get_count(stats+0, MPI_SPARSE_CELL, &incoming_size);
+			sparse_buff.resize(incoming_size);
+			MPI_Irecv(sparse_buff.data(), incoming_size, MPI_SPARSE_CELL,
+					prev_proc, 0, MPI_COMM_WORLD, reqs+1);
+
+			MPI_Waitall(2, reqs, stats);
+
+			for (int st = 0; st < 2; st++) {
+				if (stats[st].MPI_ERROR != MPI_SUCCESS) {
+					throw runtime_error("Error in non-blocking send/receive: " + to_string(st));
+				}
+				MPI_Request_free(reqs+st);
+			}
+
+			swap(my_sparse.cells, sparse_buff); // O(1)
+			sparse_buff.clear();
+
+		}
+
+		swap(my_dense.cells, partial_res.cells); // O(1)
 	}
 
 	MPI_Barrier(MPI_COMM_WORLD);
 	comp_end = MPI_Wtime();
+
+	// send results to root
 
 	if (show_results) {
 		// FIXME: replace the following line: print the whole result matrix
@@ -582,6 +654,7 @@ int main(int argc, char * argv[]) {
 		printf("54\n");
 	}
 
+	MPI_Type_free(&MPI_SPARSE_CELL);
 	MPI_Finalize();
 
 	return 0;

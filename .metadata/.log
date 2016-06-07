@@ -8654,3 +8654,6 @@ Command-line arguments:  -os linux -ws gtk -arch x86_64 -product org.eclipse.epp
 
 !ENTRY org.eclipse.debug.ui 4 0 2016-06-07 11:51:43.287
 !MESSAGE Tab group extension: org.eclipse.cdt.launch.applicationProfileLaunchTabGroup for type org.eclipse.cdt.launch.applicationLaunchType for the [profile] mode has been replaced by extension: org.eclipse.cdt.launch.applicationProfileLaunchTabGroup
+
+!ENTRY org.eclipse.cdt.core 1 0 2016-06-07 17:46:31.151
+!MESSAGE Indexed 'mw336071' (4 sources, 281 headers) in 5,33 sec: 37 487 declarations; 62 602 references; 0 unresolved inclusions; 1 syntax errors; 4 unresolved names (0,004%)
