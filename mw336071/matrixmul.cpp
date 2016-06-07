@@ -432,21 +432,55 @@ int main(int argc, char * argv[]) {
 		return 3;
 	}
 
-	comm_start = MPI_Wtime();
-// FIXME: scatter sparse matrix; cache sparse matrix; cache dense matrix
-	sparse_type my_sparse_chunk;
+	if (use_inner == 0) {
+		if ( num_processes % repl_fact != 0 ) {
+			fprintf(stderr, "error: replication factor should divide number of processes; exiting\n");
+			MPI_Finalize();
+			return 3;
+		}
 
-	//my_sparse_chunk = sparseScatterV2(sparse, MPI_SPARSE_CELL, num_processes, mpi_rank);
-	my_sparse_chunk = sparseIsendIrecv2(sparse, MPI_SPARSE_CELL, num_processes, mpi_rank);
+	}
+
+	comm_start = MPI_Wtime();
+
+	// broadcast matrix dimension
+	int N = (mpi_rank == 0) ? sparse.nrow : -1;
+	MPI_Bcast(&N, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+	// get sparse chunk
+	sparse_type my_sparse_chunk;
+	my_sparse_chunk = sparseScatterV2(sparse, MPI_SPARSE_CELL, num_processes, mpi_rank);
+	//my_sparse_chunk = sparseIsendIrecv2(sparse, MPI_SPARSE_CELL, num_processes, mpi_rank);
 	//my_sparse_chunk = sparseScatterV(sparse, MPI_SPARSE_CELL, num_processes, mpi_rank);
 	//	my_sparse_chunk = sparseIsendIrecv(sparse, MPI_SPARSE_CELL, num_processes, mpi_rank);
 
+	MPI_Barrier(MPI_COMM_WORLD);
 
-//	MPI_Gather(&my_sparse, 1, MPI_DOUBLE, sub_avgs, 1, MPI_FLOAT, 0,
-//				MPI_COMM_WORLD);
+	// create rplication group
+	MPI_Comm MPI_COMM_REPL;
+	MPI_Comm_split(MPI_COMM_WORLD, mpi_rank / repl_fact, mpi_rank, &MPI_COMM_REPL);
+
+	// replicate within group
+	int repl_sparse_size;
+	int my_sparse_size = my_sparse_chunk.size();
+
+	// collect total number of cells within replication group
+	MPI_Allreduce(&my_sparse_size, &repl_sparse_size, 1, MPI_INT, MPI_SUM, MPI_COMM_REPL);
+
+	// gather all chunks within replication group
+	sparse_type repl_sparse_chunk;
+	repl_sparse_chunk.resize(repl_sparse_size);
+	MPI_Allgather(my_sparse_chunk.data(), my_sparse_chunk.size(), MPI_SPARSE_CELL,
+				repl_sparse_chunk.data(), repl_sparse_size, MPI_SPARSE_CELL,
+				MPI_COMM_REPL);
+
+	MPI_Comm_free(&MPI_COMM_REPL);
 
 	MPI_Barrier(MPI_COMM_WORLD);
 	comm_end = MPI_Wtime();
+
+	// generate dense
+
 
 	if ( debon ) {
 //		printf("Send sparse time %d: %.5f\n", mpi_rank, comm_end - comm_start);
