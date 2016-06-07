@@ -38,6 +38,8 @@ ostream & operator <<(std::ostream & s, const cell & v) {
 
 //typedef pair<pair<int,int>, double> cell;
 typedef vector<cell> sparse_type;
+typedef vector<vector<double>> dense_type;
+
 class Matrix {
 public:
 	int nrow, ncol;
@@ -58,6 +60,71 @@ public:
 	}
 
 };
+
+class DenseMatrix: public Matrix {
+public:
+	dense_type cells;
+	int start_col = 0;
+	int start_row = 0;
+
+	// Init matrix with 0
+	DenseMatrix(int nrow, int ncol, int start_row = 0, int start_col = 0) : Matrix() {
+		this->cells = dense_type (nrow, vector<double>(ncol, 0));
+		this->nrow = nrow;
+		this->ncol = ncol;
+		this->start_row = start_row;
+		this->start_col = start_col;
+	}
+
+	double getCell(int x, int y) {
+		x -= this->start_row;
+		y -= this->start_col;
+		return cells[x][y];
+	}
+
+	void print() const {
+		for (const auto& row : cells) {
+			for (const auto& col : row) {
+				// TODO
+				//printf("%d, %d: %lf\n", ce.x, ce.y, ce.v);
+			}
+		}
+	}
+
+	bool isEmpty() const {
+		return cells.empty();
+	}
+
+	void setCells(int v = 0) {
+		for (auto& row : cells) {
+			for (auto & col : row) {
+				col = v;
+			}
+		}
+	}
+};
+
+
+DenseMatrix generateDenseSubmatrix(int mpi_rank, int num_processes, int N, int seed) {
+	int base = N / num_processes; // base number of columns for each process
+	int add = N % num_processes; // number of processes with +1 column than the rest
+
+	int nrow = N;
+	int ncol = base + int(mpi_rank < add);
+	int start_row = 0;
+	int start_col = mpi_rank * base + min(mpi_rank, add);
+	// whre min(mpi_rank, add) - how many process before me have additional column
+
+	DenseMatrix matrix(nrow, ncol, start_row, start_col);
+
+	for (int x = 0; x < nrow; x++ ) {
+		for (int y = 0; y < ncol; y++ ) {
+			matrix.cells[x][y] = generate_double(seed, x + start_row, y + start_col);
+		}
+	}
+	return matrix;
+}
+
 
 MPI_Datatype commitSparseCellType() {
 	const int nitems = 3;
@@ -216,8 +283,8 @@ vector<sparse_type> colChunks(const SparseMatrix &sparse, int n) {
 	return chunks;
 }
 
-
-sparse_type sparseIsendIrecv(const SparseMatrix& sparse, MPI_Datatype MPI_SPARSE_CELL, int num_processes, int mpi_rank) {
+sparse_type sparseIsendIrecv(const SparseMatrix& sparse, MPI_Datatype MPI_SPARSE_CELL, int num_processes,
+		int mpi_rank) {
 	sparse_type my_sparse_chunk;
 	if ((mpi_rank) == 0) {
 		// prepare sparse chunks to scatter
@@ -239,7 +306,8 @@ sparse_type sparseIsendIrecv(const SparseMatrix& sparse, MPI_Datatype MPI_SPARSE
 
 		MPI_Probe(0, 0, MPI::COMM_WORLD, &status);
 		MPI_Get_count(&status, MPI_SPARSE_CELL, &incoming_size);
-		deb(mpi_rank); deb(incoming_size);
+		deb(mpi_rank);
+		deb(incoming_size);
 		my_sparse_chunk.resize(incoming_size);
 		MPI_Irecv(my_sparse_chunk.data(), incoming_size, MPI_SPARSE_CELL, 0, 0, MPI_COMM_WORLD, &req);
 		MPI_Request_free(&req);
@@ -268,7 +336,7 @@ sparse_type sparseScatterV(SparseMatrix& sparse, MPI_Datatype MPI_SPARSE_CELL, i
 		for (int i = 0; i < chunks_num; i++) {
 			sparse.cells.insert(sparse.cells.end(), sparse_chunks[i].begin(), sparse_chunks[i].end());
 			scounts[i] = sparse_chunks[i].size();
-			displs[i] = (i == 0) ? 0 : displs[i-1] + scounts[i-1];
+			displs[i] = (i == 0) ? 0 : displs[i - 1] + scounts[i - 1];
 		}
 //			deb(proc); debt(data, sparse_chunks[proc].size());
 		sendbuf = sparse.cells.data();
@@ -279,15 +347,15 @@ sparse_type sparseScatterV(SparseMatrix& sparse, MPI_Datatype MPI_SPARSE_CELL, i
 
 	// scatter chunks sizes
 	int mysize = -1;
-	MPI_Scatter(scounts, 1, MPI_INT, &mysize, 1, MPI_INT, 0, MPI_COMM_WORLD );
+	MPI_Scatter(scounts, 1, MPI_INT, &mysize, 1, MPI_INT, 0, MPI_COMM_WORLD);
 //	if (debon) cout << mpi_rank << ": mysize " << mysize << endl;
 	//	if (debon && sendbuf != NULL) { debt(sendbuf, 4); debt(scounts , num_processes); debt(displs , num_processes); }
 
 	my_sparse_chunk.resize(mysize);
 
 	// scatter data
-	MPI_Scatterv(sendbuf, scounts , displs, MPI_SPARSE_CELL,
-			my_sparse_chunk.data(), mysize, MPI_SPARSE_CELL, 0, MPI_COMM_WORLD);
+	MPI_Scatterv(sendbuf, scounts, displs, MPI_SPARSE_CELL, my_sparse_chunk.data(), mysize, MPI_SPARSE_CELL, 0,
+			MPI_COMM_WORLD);
 
 //	deb(my_sparse_chunk.size());
 //	debv(my_sparse_chunk)
@@ -307,29 +375,28 @@ sparse_type sparseScatterV2(SparseMatrix& sparse, MPI_Datatype MPI_SPARSE_CELL, 
 		int base = nz / num_processes; // base number of columns for each process
 		int add = nz % num_processes; // number of processes with +1 column than the rest
 
-		for ( int i = 0; i < num_processes; i++ ) {
+		for (int i = 0; i < num_processes; i++) {
 			scounts[i] = base + int(i < add);
-			displs[i] = (i == 0) ? 0 : displs[i-1] + scounts[i-1];
+			displs[i] = (i == 0) ? 0 : displs[i - 1] + scounts[i - 1];
 		}
 	}
 
 	// scatter chunks sizes
 	int mysize = -1;
-	MPI_Scatter(scounts, 1, MPI_INT, &mysize, 1, MPI_INT, 0, MPI_COMM_WORLD );
+	MPI_Scatter(scounts, 1, MPI_INT, &mysize, 1, MPI_INT, 0, MPI_COMM_WORLD);
 //	if (debon) cout << mpi_rank << ": mysize " << mysize << endl;
 	//	if (debon && sendbuf != NULL) { debt(sendbuf, 4); debt(scounts , num_processes); debt(displs , num_processes); }
 
 	my_sparse_chunk.resize(mysize);
 
 	// scatter data
-	MPI_Scatterv(sendbuf, scounts , displs, MPI_SPARSE_CELL,
-			my_sparse_chunk.data(), mysize, MPI_SPARSE_CELL, 0, MPI_COMM_WORLD);
+	MPI_Scatterv(sendbuf, scounts, displs, MPI_SPARSE_CELL, my_sparse_chunk.data(), mysize, MPI_SPARSE_CELL, 0,
+			MPI_COMM_WORLD);
 
 //	deb(my_sparse_chunk.size());
 //	debv(my_sparse_chunk)
 	return my_sparse_chunk;
 }
-
 
 sparse_type sparseIsendIrecv2(SparseMatrix& sparse, MPI_Datatype MPI_SPARSE_CELL, int num_processes, int mpi_rank) {
 	sparse_type my_sparse_chunk;
@@ -360,7 +427,8 @@ sparse_type sparseIsendIrecv2(SparseMatrix& sparse, MPI_Datatype MPI_SPARSE_CELL
 
 		MPI_Probe(0, 0, MPI::COMM_WORLD, &status);
 		MPI_Get_count(&status, MPI_SPARSE_CELL, &incoming_size);
-		deb(mpi_rank); deb(incoming_size);
+		deb(mpi_rank);
+		deb(incoming_size);
 		my_sparse_chunk.resize(incoming_size);
 		MPI_Irecv(my_sparse_chunk.data(), incoming_size, MPI_SPARSE_CELL, 0, 0, MPI_COMM_WORLD, &req);
 		MPI_Request_free(&req);
@@ -433,7 +501,7 @@ int main(int argc, char * argv[]) {
 	}
 
 	if (use_inner == 0) {
-		if ( num_processes % repl_fact != 0 ) {
+		if (num_processes % repl_fact != 0) {
 			fprintf(stderr, "error: replication factor should divide number of processes; exiting\n");
 			MPI_Finalize();
 			return 3;
@@ -454,6 +522,7 @@ int main(int argc, char * argv[]) {
 	//my_sparse_chunk = sparseScatterV(sparse, MPI_SPARSE_CELL, num_processes, mpi_rank);
 	//	my_sparse_chunk = sparseIsendIrecv(sparse, MPI_SPARSE_CELL, num_processes, mpi_rank);
 
+	// TODO przeniesc bariere do metod, sprawdzic czy konieczna
 	MPI_Barrier(MPI_COMM_WORLD);
 
 	// create rplication group
@@ -470,19 +539,17 @@ int main(int argc, char * argv[]) {
 	// gather all chunks within replication group
 	sparse_type repl_sparse_chunk;
 	repl_sparse_chunk.resize(repl_sparse_size);
-	MPI_Allgather(my_sparse_chunk.data(), my_sparse_chunk.size(), MPI_SPARSE_CELL,
-				repl_sparse_chunk.data(), repl_sparse_size, MPI_SPARSE_CELL,
-				MPI_COMM_REPL);
+	MPI_Allgather(my_sparse_chunk.data(), my_sparse_chunk.size(), MPI_SPARSE_CELL, repl_sparse_chunk.data(),
+			repl_sparse_size, MPI_SPARSE_CELL, MPI_COMM_REPL);
 
 	MPI_Comm_free(&MPI_COMM_REPL);
 
-	MPI_Barrier(MPI_COMM_WORLD);
 	comm_end = MPI_Wtime();
 
 	// generate dense
+	DenseMatrix dense = generateDenseSubmatrix(mpi_rank, num_processes, N, gen_seed);
 
-
-	if ( debon ) {
+	if ( debon) {
 //		printf("Send sparse time %d: %.5f\n", mpi_rank, comm_end - comm_start);
 		printf("%.5f\n", comm_end - comm_start);
 //		deb(my_sparse_chunk.size());
