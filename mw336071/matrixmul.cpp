@@ -43,6 +43,10 @@ ostream & operator <<(std::ostream & s, const cell & v) {
 //typedef pair<pair<int,int>, double> cell;
 typedef vector<cell> sparse_type;
 
+struct MatrixInfo {
+	int base, add, nrow, ncol, start_row, start_col;
+};
+
 class Matrix {
 public:
 	int nrow = 0, ncol = 0;
@@ -70,16 +74,20 @@ class DenseMatrix: public Matrix {
 private:
 
 public:
-	dense_type cells; // [col][row] = col*nrow+row
+	dense_type cells = nullptr; // [col][row] = col*nrow+row
 	int start_col = 0;
 	int start_row = 0;
-	int last_col_excl;
-	int last_row_excl;
+	int last_col_excl = 0;
+	int last_row_excl = 0;
 
+	DenseMatrix() :
+			Matrix() {
+	}
 
 	// Initialize matrix with 0
-	DenseMatrix(int nrow, int ncol, int start_row = 0, int start_col = 0) : Matrix() {
-		this->cells = new double[nrow*ncol]; // continous block of memory
+	DenseMatrix(int nrow, int ncol, int start_row = 0, int start_col = 0) :
+			Matrix() {
+		this->cells = new double[nrow * ncol]; // continous block of memory
 
 		this->nrow = nrow;
 		this->ncol = ncol;
@@ -89,8 +97,13 @@ public:
 		this->last_col_excl = start_col + ncol;
 	}
 
+	DenseMatrix(MatrixInfo other) :
+			DenseMatrix(other.nrow, other.ncol, other.start_row, other.start_col) {
+	}
+
 	// Initialize only dimensions, does not copy values
-	DenseMatrix(const DenseMatrix& other) : DenseMatrix(other.nrow, other.ncol, other.start_row, other.start_col) {
+	DenseMatrix(const DenseMatrix& other) :
+			DenseMatrix(other.nrow, other.ncol, other.start_row, other.start_col) {
 	}
 
 	~DenseMatrix() {
@@ -107,7 +120,6 @@ public:
 	dense_type data() {
 		return cells;
 	}
-
 
 	bool containsCell(int global_x, int global_y) const {
 		return global_x >= start_row && global_y >= start_col && global_x < last_row_excl && global_y < last_col_excl;
@@ -133,48 +145,61 @@ public:
 
 	void setCells(int v = 0) {
 		/*for (auto& row : cells) {
-			for (auto & col : row) {
-				col = v;
-			}
-		}*/
+		 for (auto & col : row) {
+		 col = v;
+		 }
+		 }*/
 		for (int i = 0; i < nrow * ncol; i++) {
-				cells[i] = v;
+			cells[i] = v;
+		}
+	}
+
+	void print() const {
+		printf("%d %d\n", nrow, ncol);
+		for (int x = 0; x < nrow; x++) {
+			for (int y = 0; y < ncol; y++) {
+				printf(" %lf", cells[x + nrow * y]);
+			}
+			if (x < nrow - 1) {
+				printf("\n");
+			}
 		}
 	}
 };
 
-
 void partialMul(DenseMatrix& C, const SparseMatrix& A, const DenseMatrix& B) {
-	for (auto& sparse: A.cells) {
+	for (auto& sparse : A.cells) {
 		// could avoid starting from start_col by scaling sparse.y -= start.col,, sparse.x -= start.row
 		for (int k = B.start_col; k < B.last_col_excl; k++) {
 			const double v = sparse.v * B.getCell(sparse.y, k);
-			C.add( sparse.x, k, v );
+			C.add(sparse.x, k, v);
 		}
 	}
 }
 
+MatrixInfo colBlockedSubMatrixInfo(int rank, int num_processes, int dim) {
+	MatrixInfo info;
+	info.base = dim / num_processes; // base number of columns for each process
+	info.add = dim % num_processes; // number of processes with +1 column than the rest
+	info.nrow = dim;
+	info.ncol = info.base + int(rank < info.add);
+	info.start_row = 0;
+	info.start_col = rank * info.base + min(rank, info.add);
+	return info;
+}
+
 DenseMatrix generateDenseSubmatrix(int mpi_rank, int num_processes, int N, int seed) {
-	int base = N / num_processes; // base number of columns for each process
-	int add = N % num_processes; // number of processes with +1 column than the rest
+	auto info = colBlockedSubMatrixInfo(mpi_rank, num_processes, N);
+	DenseMatrix matrix(info);
 
-	int nrow = N;
-	int ncol = base + int(mpi_rank < add);
-	int start_row = 0;
-	int start_col = mpi_rank * base + min(mpi_rank, add);
-	// whre min(mpi_rank, add) - how many process before me have additional column
-
-	DenseMatrix matrix(nrow, ncol, start_row, start_col);
-
-	for (int y = start_col; y < start_col + ncol; y++ ) {
-		for (int x = start_row; x < start_row + nrow; x++ ) {
+	for (int y = info.start_col; y < info.start_col + info.ncol; y++) {
+		for (int x = info.start_row; x < info.start_row + info.nrow; x++) {
 			//matrix.cells[x][y] = generate_double(seed, x + start_row, y + start_col);
 			matrix.setCell(x, y, generate_double(seed, x, y));
 		}
 	}
 	return matrix;
 }
-
 
 MPI_Datatype commitSparseCellType() {
 	const int nitems = 3;
@@ -406,7 +431,7 @@ sparse_type sparseScatterV(SparseMatrix& sparse, MPI_Datatype MPI_SPARSE_CELL, i
 
 	// scatter data
 	MPI_Scatterv(sendbuf, scounts, displs, MPI_SPARSE_CELL, my_sparse_chunk.data(), mysize, MPI_SPARSE_CELL, 0,
-			MPI_COMM_WORLD);
+	MPI_COMM_WORLD);
 
 //	deb(my_sparse_chunk.size());
 //	debv(my_sparse_chunk)
@@ -442,7 +467,7 @@ sparse_type sparseScatterV2(SparseMatrix& sparse, MPI_Datatype MPI_SPARSE_CELL, 
 
 	// scatter data
 	MPI_Scatterv(sendbuf, scounts, displs, MPI_SPARSE_CELL, my_sparse_chunk.data(), mysize, MPI_SPARSE_CELL, 0,
-			MPI_COMM_WORLD);
+	MPI_COMM_WORLD);
 
 //	deb(my_sparse_chunk.size());
 //	debv(my_sparse_chunk)
@@ -601,14 +626,13 @@ int main(int argc, char * argv[]) {
 	comm_end = MPI_Wtime();
 
 	if ( debon) {
-//		printf("Send sparse time %d: %.5f\n", mpi_rank, comm_end - comm_start);
-		printf("%.5f\n", comm_end - comm_start);
+		printf("Communication %d: %.5f\n", mpi_rank, comm_end - comm_start);
+//		printf("%.5f\n", comm_end - comm_start);
 //		deb(my_sparse_chunk.size());
 //		debv(my_sparse_chunk);
-		deb(repl_sparse_chunk.size());
+//		deb(repl_sparse_chunk.size());
 		//debv(repl_sparse_chunk);
 	}
-
 
 	SparseMatrix my_sparse;
 	my_sparse.cells = std::move(repl_sparse_chunk);
@@ -632,16 +656,15 @@ int main(int argc, char * argv[]) {
 		}
 
 		for (int r = 0; r < rounds_num; ++r) {
-			MPI_Isend(my_sparse.cells.data(), my_sparse.cells.size(), MPI_SPARSE_CELL,
-					next_proc, 0, MPI_COMM_WORLD,  reqs+0);
+			MPI_Isend(my_sparse.cells.data(), my_sparse.cells.size(), MPI_SPARSE_CELL, next_proc, 0, MPI_COMM_WORLD,
+					reqs + 0);
 
 			partialMul(partial_res, my_sparse, my_dense); // does not modify my_sparse
 
-			MPI_Probe(prev_proc, 0, MPI_COMM_WORLD, stats+0);
-			MPI_Get_count(stats+0, MPI_SPARSE_CELL, &incoming_size);
+			MPI_Probe(prev_proc, 0, MPI_COMM_WORLD, stats + 0);
+			MPI_Get_count(stats + 0, MPI_SPARSE_CELL, &incoming_size);
 			sparse_buff.resize(incoming_size);
-			MPI_Irecv(sparse_buff.data(), incoming_size, MPI_SPARSE_CELL,
-					prev_proc, 0, MPI_COMM_WORLD, reqs+1);
+			MPI_Irecv(sparse_buff.data(), incoming_size, MPI_SPARSE_CELL, prev_proc, 0, MPI_COMM_WORLD, reqs + 1);
 
 			MPI_Waitall(2, reqs, stats);
 
@@ -662,66 +685,47 @@ int main(int argc, char * argv[]) {
 //	MPI_Barrier(MPI_COMM_WORLD	);
 	comp_end = MPI_Wtime();
 
-	// send results to root
-	// TODO rewrite dense as
-	auto matrix = new double[5][5];g
-	for (int i = 0; i < 5; i++)
-		for(int j = 0; j < 5; j++)
-			matrix[i][j] = mpi_rank*100 + i*5+j;
-
-	auto buff = new double[25][5];
-
-	int displs[5];
-	int rcounts[5];
-	for (int i=0; i<5; ++i) {
-		displs[i] = i*25;
-		rcounts[i] = 25;     /* note change from previous example */
+	if ( debon) {
+		printf("Computations %d: %.5f\n", mpi_rank, comp_end - comp_start);
 	}
-
-	MPI_Gatherv( *matrix, 25, MPI_DOUBLE, *buff, rcounts, displs, MPI_DOUBLE, 0, MPI_COMM_WORLD );
-
-
-	if (mpi_rank == 0) {
-		for (int i = 0; i < 25; i++) {
-			for(int j = 0; j < 5; j++)
-				cout << matrix[i][j] << " ";
-			cout << endl;
-		}
-	}
-
-    /* Create datatype for the column we are sending
-     */
-//	MPI_Datatype stype;
-//	MPI_Type_vector( 5, 1, 5, MPI_DOUBLE, &stype);
-//	MPI_Type_commit( &stype );
-	/* sptr is the address of start of "myrank" column */
-
-//	MPI_Gatherv( sptr, 1, stype, rbuf, rcounts, displs, MPI_INT,
-//                                                        root, comm);
-
-
 
 	if (show_results) {
-		// FIXME: replace the following line: print the whole result matrix
-		printf("1 1\n42\n");
+		// gather results to root
+		int s = (mpi_rank == 0) ? N : 0;
+		int rcounts[s];
+		int displs[s];
+		double* result = new double[s * s]; // on heap
+
+		if (mpi_rank == 0) {
+			//double result[N*N]; // on stack;
+			for (int i = 0; i < num_processes; ++i) {
+				auto info = colBlockedSubMatrixInfo(i, num_processes, N);
+				rcounts[i] = info.ncol * info.nrow; /* note change from previous example */
+				displs[i] = (i == 0) ? 0 : displs[i - 1] + rcounts[i - 1];
+			}
+		}
+
+		MPI_Gatherv(my_dense.cells, my_dense.nrow * my_dense.ncol, MPI_DOUBLE, result, rcounts, displs, MPI_DOUBLE, 0,
+		MPI_COMM_WORLD);
+
+		if (mpi_rank == 0) {
+			DenseMatrix resultM;
+			resultM.cells = result; // will free result
+			resultM.nrow = N;
+			resultM.ncol = N;
+			resultM.print();
+		}
 	}
 	if (count_ge) {
 		// FIXME: replace the following line: count ge elements
 		printf("54\n");
 	}
 
-
 	MPI_Type_free(&MPI_SPARSE_CELL);
 	MPI_Finalize();
 
 	return 0;
 }
-
-void print(DenseMatrix matrix) {
-
-}
-
-
 
 //void tmp(result, sparse, dense) {
 //
