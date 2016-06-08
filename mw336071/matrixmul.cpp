@@ -27,21 +27,6 @@
 
 using namespace std;
 
-//typedef void* sparse_type;
-/**
- * x - rows, y - columns
- */
-struct cell {
-	int x, y;
-	double v;
-};
-
-ostream & operator <<(std::ostream & s, const cell & v) {
-	return s << '(' << v.x << ',' << v.y << ":" << v.v << ")";
-}
-
-//typedef pair<pair<int,int>, double> cell;
-typedef vector<cell> sparse_type;
 
 struct MatrixInfo {
 	int base, add, nrow, ncol, start_row, start_col;
@@ -52,21 +37,6 @@ public:
 	int nrow = 0, ncol = 0;
 };
 
-class SparseMatrix: public Matrix {
-public:
-	sparse_type cells;
-
-	void print() const {
-		for (cell ce : cells) {
-			printf("%d, %d: %lf\n", ce.x, ce.y, ce.v);
-		}
-	}
-
-	bool isEmpty() const {
-		return cells.empty();
-	}
-
-};
 
 typedef double* dense_type;
 
@@ -87,7 +57,7 @@ public:
 	// Initialize matrix with 0
 	DenseMatrix(int nrow, int ncol, int start_row = 0, int start_col = 0) :
 			Matrix() {
-		this->cells = new double[nrow * ncol]; // continous block of memory
+		this->cells = new double[nrow * ncol](); // continous block of memory
 
 		this->nrow = nrow;
 		this->ncol = ncol;
@@ -167,6 +137,48 @@ public:
 	}
 };
 
+/**
+ * x - rows, y - columns
+ */
+struct cell {
+	int x, y;
+	double v;
+};
+
+// for debug only
+ostream & operator <<(std::ostream & s, const cell & v) {
+	return s << '(' << v.x << ',' << v.y << ":" << v.v << ")";
+}
+
+//typedef pair<pair<int,int>, double> cell;
+typedef vector<cell> sparse_type;
+
+class SparseMatrix: public Matrix {
+public:
+	sparse_type cells;
+
+	void print() const {
+		for (cell ce : cells) {
+			printf("%d, %d: %lf\n", ce.x, ce.y, ce.v);
+		}
+	}
+
+	bool isEmpty() const {
+		return cells.empty();
+	}
+
+	// for debug only
+	operator DenseMatrix() const {
+		DenseMatrix casted(nrow, ncol, 0, 0);
+		for (auto& cell : cells) {
+			casted.setCell(cell.x, cell.y, cell.v);
+		}
+		return casted;
+	}
+
+};
+
+
 void partialMul(DenseMatrix& C, const SparseMatrix& A, const DenseMatrix& B) {
 	for (auto& sparse : A.cells) {
 		// could avoid starting from start_col by scaling sparse.y -= start.col,, sparse.x -= start.row
@@ -186,6 +198,19 @@ MatrixInfo colBlockedSubMatrixInfo(int rank, int num_processes, int dim) {
 	info.start_row = 0;
 	info.start_col = rank * info.base + min(rank, info.add);
 	return info;
+}
+
+// only for debug purpose
+DenseMatrix generateWholeDense(int N, int seed) {
+	DenseMatrix matrix(N,N,0,0);
+
+	for (int y = 0; y < N; y++) {
+		for (int x = 0; x < N; x++) {
+			//matrix.cells[x][y] = generate_double(seed, x + start_row, y + start_col);
+			matrix.setCell(x, y, generate_double(seed, x, y) );
+		}
+	}
+	return matrix;
 }
 
 DenseMatrix generateDenseSubmatrix(int mpi_rank, int num_processes, int N, int seed) {
@@ -709,6 +734,19 @@ int main(int argc, char * argv[]) {
 		MPI_COMM_WORLD);
 
 		if (mpi_rank == 0) {
+			if (debon) {
+				printf( "SPARSE:\n" );
+				DenseMatrix(sparse).print();
+				printf( "\nDENSE:\n" );
+				DenseMatrix dense_whole = generateWholeDense(N, gen_seed);
+				dense_whole.print();
+				DenseMatrix noParRes(dense_whole);
+				partialMul(noParRes, sparse, dense_whole);
+				printf( "\nRESULT no parallel:\n");
+				noParRes.print();
+				printf( "\nRESULT:\n" );
+			}
+
 			DenseMatrix resultM;
 			resultM.cells = result; // will free result
 			resultM.nrow = N;
