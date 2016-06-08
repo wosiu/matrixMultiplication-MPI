@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <cmath>
 #include <utility>      // std::move (objects)
+#include <map>
 
 #include <mpi.h>
 
@@ -41,11 +42,10 @@ ostream & operator <<(std::ostream & s, const cell & v) {
 
 //typedef pair<pair<int,int>, double> cell;
 typedef vector<cell> sparse_type;
-typedef vector<vector<double>> dense_type;
 
 class Matrix {
 public:
-	int nrow, ncol;
+	int nrow = 0, ncol = 0;
 };
 
 class SparseMatrix: public Matrix {
@@ -64,9 +64,13 @@ public:
 
 };
 
+typedef double* dense_type;
+
 class DenseMatrix: public Matrix {
+private:
+
 public:
-	dense_type cells;
+	dense_type cells; // [col][row] = col*nrow+row
 	int start_col = 0;
 	int start_row = 0;
 	int last_col_excl;
@@ -75,7 +79,8 @@ public:
 
 	// Initialize matrix with 0
 	DenseMatrix(int nrow, int ncol, int start_row = 0, int start_col = 0) : Matrix() {
-		this->cells = dense_type (nrow, vector<double>(ncol, 0));
+		this->cells = new double[nrow*ncol]; // continous block of memory
+
 		this->nrow = nrow;
 		this->ncol = ncol;
 		this->start_row = start_row;
@@ -88,6 +93,22 @@ public:
 	DenseMatrix(const DenseMatrix& other) : DenseMatrix(other.nrow, other.ncol, other.start_row, other.start_col) {
 	}
 
+	~DenseMatrix() {
+		delete[] cells;
+	}
+
+	void setCell(int global_x, int global_y, double val) const {
+		global_x -= this->start_row;
+		global_y -= this->start_col;
+//		return cells[global_x][global_y];
+		cells[global_x + global_y * nrow] = val;
+	}
+
+	dense_type data() {
+		return cells;
+	}
+
+
 	bool containsCell(int global_x, int global_y) const {
 		return global_x >= start_row && global_y >= start_col && global_x < last_row_excl && global_y < last_col_excl;
 	}
@@ -96,33 +117,28 @@ public:
 	double getCell(int global_x, int global_y) const {
 		global_x -= this->start_row;
 		global_y -= this->start_col;
-		return cells[global_x][global_y];
+//		return cells[global_x][global_y];
+		return cells[global_x + global_y * nrow];
 	}
 
 	void add(int global_x, int global_y, double v) {
 		global_x -= this->start_row;
 		global_y -= this->start_col;
-		cells[global_x][global_y] += v;
-	}
-
-	void print() const {
-		for (const auto& row : cells) {
-			for (const auto& col : row) {
-				// TODO
-				//printf("%d, %d: %lf\n", ce.x, ce.y, ce.v);
-			}
-		}
+		cells[global_x + global_y * nrow] += v;
 	}
 
 	bool isEmpty() const {
-		return cells.empty();
+		return nrow == 0 || ncol == 0;
 	}
 
 	void setCells(int v = 0) {
-		for (auto& row : cells) {
+		/*for (auto& row : cells) {
 			for (auto & col : row) {
 				col = v;
 			}
+		}*/
+		for (int i = 0; i < nrow * ncol; i++) {
+				cells[i] = v;
 		}
 	}
 };
@@ -150,9 +166,10 @@ DenseMatrix generateDenseSubmatrix(int mpi_rank, int num_processes, int N, int s
 
 	DenseMatrix matrix(nrow, ncol, start_row, start_col);
 
-	for (int x = 0; x < nrow; x++ ) {
-		for (int y = 0; y < ncol; y++ ) {
-			matrix.cells[x][y] = generate_double(seed, x + start_row, y + start_col);
+	for (int y = start_col; y < start_col + ncol; y++ ) {
+		for (int x = start_row; x < start_row + nrow; x++ ) {
+			//matrix.cells[x][y] = generate_double(seed, x + start_row, y + start_col);
+			matrix.setCell(x, y, generate_double(seed, x, y));
 		}
 	}
 	return matrix;
@@ -589,7 +606,7 @@ int main(int argc, char * argv[]) {
 //		deb(my_sparse_chunk.size());
 //		debv(my_sparse_chunk);
 		deb(repl_sparse_chunk.size());
-		debv(repl_sparse_chunk);
+		//debv(repl_sparse_chunk);
 	}
 
 
@@ -632,7 +649,6 @@ int main(int argc, char * argv[]) {
 				if (stats[st].MPI_ERROR != MPI_SUCCESS) {
 					throw runtime_error("Error in non-blocking send/receive: " + to_string(st));
 				}
-				MPI_Request_free(reqs+st);
 			}
 
 			swap(my_sparse.cells, sparse_buff); // O(1)
@@ -647,6 +663,43 @@ int main(int argc, char * argv[]) {
 	comp_end = MPI_Wtime();
 
 	// send results to root
+	// TODO rewrite dense as
+	auto matrix = new double[5][5];g
+	for (int i = 0; i < 5; i++)
+		for(int j = 0; j < 5; j++)
+			matrix[i][j] = mpi_rank*100 + i*5+j;
+
+	auto buff = new double[25][5];
+
+	int displs[5];
+	int rcounts[5];
+	for (int i=0; i<5; ++i) {
+		displs[i] = i*25;
+		rcounts[i] = 25;     /* note change from previous example */
+	}
+
+	MPI_Gatherv( *matrix, 25, MPI_DOUBLE, *buff, rcounts, displs, MPI_DOUBLE, 0, MPI_COMM_WORLD );
+
+
+	if (mpi_rank == 0) {
+		for (int i = 0; i < 25; i++) {
+			for(int j = 0; j < 5; j++)
+				cout << matrix[i][j] << " ";
+			cout << endl;
+		}
+	}
+
+    /* Create datatype for the column we are sending
+     */
+//	MPI_Datatype stype;
+//	MPI_Type_vector( 5, 1, 5, MPI_DOUBLE, &stype);
+//	MPI_Type_commit( &stype );
+	/* sptr is the address of start of "myrank" column */
+
+//	MPI_Gatherv( sptr, 1, stype, rbuf, rcounts, displs, MPI_INT,
+//                                                        root, comm);
+
+
 
 	if (show_results) {
 		// FIXME: replace the following line: print the whole result matrix
@@ -657,11 +710,18 @@ int main(int argc, char * argv[]) {
 		printf("54\n");
 	}
 
+
 	MPI_Type_free(&MPI_SPARSE_CELL);
 	MPI_Finalize();
 
 	return 0;
 }
+
+void print(DenseMatrix matrix) {
+
+}
+
+
 
 //void tmp(result, sparse, dense) {
 //
