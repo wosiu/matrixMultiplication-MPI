@@ -19,7 +19,9 @@
 #include "densematgen.h"
 #include "utils.h"
 
-#define debon true
+#define checkpointon false
+#define debon false
+#define CP {if (checkpointon) cout << endl << "CHECKPOINT@" << __LINE__ << endl;}
 #define deb(burak) if(debon) {cout<<__LINE__<< " DEB-> "<<#burak<<": "<<burak<<endl;}
 #define debv(burak) if(debon) {cout<<__LINE__<< " DEB-> "<<#burak<<": \t"; for(unsigned int zyx=0;zyx<burak.size();zyx++) cout<<burak[zyx]<<" "; cout<<endl;}
 #define debt(burak,SIzE) if(debon) {cout<<__LINE__<< " DEB-> "<<#burak<<": \t"; for(unsigned int zyx=0;zyx<SIzE;zyx++) cout<<burak[zyx]<<" "; cout<<endl;}
@@ -77,7 +79,9 @@ public:
 	}
 
 	~DenseMatrix() {
-		delete[] cells;
+		if (cells != nullptr) {
+			delete[] cells;
+		}
 	}
 
 	void setCell(int global_x, int global_y, double val) const {
@@ -609,6 +613,7 @@ int main(int argc, char * argv[]) {
 		}
 
 	}
+	CP;
 
 	comm_start = MPI_Wtime();
 
@@ -626,29 +631,53 @@ int main(int argc, char * argv[]) {
 	// TODO przeniesc bariere do metod, sprawdzic czy konieczna
 	MPI_Barrier(MPI_COMM_WORLD);
 
+	CP;
 	// create rplication group
 	MPI_Comm MPI_COMM_REPL;
 	MPI_Comm_split(MPI_COMM_WORLD, mpi_rank / repl_fact, mpi_rank, &MPI_COMM_REPL);
 
 	// replicate within group
-	int repl_sparse_size;
 	int my_sparse_size = my_sparse_chunk.size();
 
 	// collect total number of cells within replication group
-	MPI_Allreduce(&my_sparse_size, &repl_sparse_size, 1, MPI_INT, MPI_SUM, MPI_COMM_REPL);
+	int chunks_sizes[repl_fact], chunks_displs[repl_fact];
+	// TODO można to wyliczyć, jeśli ustalę jednoznacznie strategię rozsyłania chunków sparse
+	// i nie będzie to cell/row blocked
+	CP
+	MPI_Allgather(&my_sparse_size, 1, MPI_INT, chunks_sizes, 1, MPI_INT, MPI_COMM_REPL);
+	CP
+
+	debt(chunks_sizes, repl_fact);
+
+	int repl_sparse_size = chunks_sizes[0];
+	chunks_displs[0] = 0;
+	for (int i = 1; i < repl_fact; i++) {
+		chunks_displs[i] = chunks_displs[i-1] + chunks_sizes[i-1];
+		repl_sparse_size += chunks_sizes[i-1];
+	}
 
 	// gather all chunks within replication group
 	sparse_type repl_sparse_chunk;
 	repl_sparse_chunk.resize(repl_sparse_size);
+	MPI_Request repl_req;
 
-	// TODO in newer version of MPI there is MPI_Iallgather. That could be improved here with wait after section
-	// which generates dense matrix.
-	MPI_Allgather(my_sparse_chunk.data(), my_sparse_chunk.size(), MPI_SPARSE_CELL, repl_sparse_chunk.data(),
-			repl_sparse_size, MPI_SPARSE_CELL, MPI_COMM_REPL);
 
-	MPI_Comm_free(&MPI_COMM_REPL);
+	CP
+	// wait after section which generates dense matrix.
+	MPI_Iallgatherv(my_sparse_chunk.data(), my_sparse_chunk.size(), MPI_SPARSE_CELL,
+			repl_sparse_chunk.data(), chunks_sizes, chunks_displs, MPI_SPARSE_CELL, MPI_COMM_REPL,
+			&repl_req);
+	CP
+
+	// error:
+	/*int repl_rank;
+	MPI_Comm_rank(MPI_COMM_REPL, &repl_rank);
+	if (repl_rank == 0) {
+		MPI_Comm_free(&MPI_COMM_REPL);
+	}*/
 
 	comm_end = MPI_Wtime();
+	CP;
 
 	if ( debon) {
 		printf("Communication %d: %.5f\n", mpi_rank, comm_end - comm_start);
@@ -665,6 +694,7 @@ int main(int argc, char * argv[]) {
 	DenseMatrix my_dense = generateDenseSubmatrix(mpi_rank, num_processes, N, gen_seed);
 	DenseMatrix partial_res(my_dense); // initialize with 0
 
+
 	comp_start = MPI_Wtime();
 	const int rounds_num = num_processes / repl_fact;
 
@@ -675,6 +705,9 @@ int main(int argc, char * argv[]) {
 	int incoming_size;
 	sparse_type sparse_buff;
 
+	MPI_Wait(&repl_req, MPI_STATUS_IGNORE);
+
+	CP;
 	for (int exp_i = 0; exp_i < exponent; ++exp_i) {
 		if (exp_i > 0) {
 			partial_res.setCells(0);
@@ -707,21 +740,24 @@ int main(int argc, char * argv[]) {
 		swap(my_dense.cells, partial_res.cells); // O(1)
 	}
 
+
 //	MPI_Barrier(MPI_COMM_WORLD	);
 	comp_end = MPI_Wtime();
 
 	if ( debon) {
 		printf("Computations %d: %.5f\n", mpi_rank, comp_end - comp_start);
 	}
-
+	CP;
 	if (show_results) {
 		// gather results to root
 		int s = (mpi_rank == 0) ? N : 0;
 		int rcounts[s];
 		int displs[s];
-		double* result = new double[s * s]; // on heap
+		double* result = NULL;
+		CP;
 
 		if (mpi_rank == 0) {
+			result = new double[s * s]; // on heap
 			//double result[N*N]; // on stack;
 			for (int i = 0; i < num_processes; ++i) {
 				auto info = colBlockedSubMatrixInfo(i, num_processes, N);
@@ -730,9 +766,10 @@ int main(int argc, char * argv[]) {
 			}
 		}
 
-		MPI_Gatherv(my_dense.cells, my_dense.nrow * my_dense.ncol, MPI_DOUBLE, result, rcounts, displs, MPI_DOUBLE, 0,
-		MPI_COMM_WORLD);
+		MPI_Gatherv(my_dense.cells, my_dense.nrow * my_dense.ncol, MPI_DOUBLE,
+				result, rcounts, displs, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
+		CP;
 		if (mpi_rank == 0) {
 			if (debon) {
 				printf( "SPARSE:\n" );
@@ -753,15 +790,20 @@ int main(int argc, char * argv[]) {
 			resultM.ncol = N;
 			resultM.print();
 		}
+		CP;
 	}
 	if (count_ge) {
 		// FIXME: replace the following line: count ge elements
 		printf("54\n");
 	}
 
-	MPI_Type_free(&MPI_SPARSE_CELL);
+	CP;
+	if (mpi_rank == 0) {
+		//MPI_Type_free(&MPI_SPARSE_CELL);
+		//MPI_Finalize();
+	}
 	MPI_Finalize();
-
+	CP;
 	return 0;
 }
 
