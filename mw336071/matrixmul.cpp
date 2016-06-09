@@ -647,8 +647,6 @@ int main(int argc, char * argv[]) {
 	MPI_Allgather(&my_sparse_size, 1, MPI_INT, chunks_sizes, 1, MPI_INT, MPI_COMM_REPL);
 	CP
 
-	debt(chunks_sizes, repl_fact);
-
 	int repl_sparse_size = chunks_sizes[0];
 	chunks_displs[0] = 0;
 	for (int i = 1; i < repl_fact; i++) {
@@ -687,17 +685,15 @@ int main(int argc, char * argv[]) {
 //		deb(repl_sparse_chunk.size());
 		//debv(repl_sparse_chunk);
 	}
-
-	SparseMatrix my_sparse;
-	my_sparse.cells = std::move(repl_sparse_chunk);
-	// generate dense
 	DenseMatrix my_dense = generateDenseSubmatrix(mpi_rank, num_processes, N, gen_seed);
 	DenseMatrix partial_res(my_dense); // initialize with 0
 
+	SparseMatrix my_sparse;
+	MPI_Wait(&repl_req, MPI_STATUS_IGNORE);
+	my_sparse.cells = std::move(repl_sparse_chunk);
+	// generate dense
 
-	comp_start = MPI_Wtime();
 	const int rounds_num = num_processes / repl_fact;
-
 	const int next_proc = (mpi_rank + repl_fact) % num_processes;
 	const int prev_proc = (mpi_rank - repl_fact + num_processes) % num_processes;
 	MPI_Request reqs[2];
@@ -705,13 +701,11 @@ int main(int argc, char * argv[]) {
 	int incoming_size;
 	sparse_type sparse_buff;
 
-	MPI_Wait(&repl_req, MPI_STATUS_IGNORE);
-
 	CP;
+
+	comp_start = MPI_Wtime();
 	for (int exp_i = 0; exp_i < exponent; ++exp_i) {
-		if (exp_i > 0) {
-			partial_res.setCells(0);
-		}
+		partial_res.setCells(0);
 
 		for (int r = 0; r < rounds_num; ++r) {
 			MPI_Isend(my_sparse.cells.data(), my_sparse.cells.size(), MPI_SPARSE_CELL, next_proc, 0, MPI_COMM_WORLD,
@@ -739,8 +733,6 @@ int main(int argc, char * argv[]) {
 
 		swap(my_dense.cells, partial_res.cells); // O(1)
 	}
-
-
 //	MPI_Barrier(MPI_COMM_WORLD	);
 	comp_end = MPI_Wtime();
 
@@ -792,16 +784,20 @@ int main(int argc, char * argv[]) {
 		}
 		CP;
 	}
+
 	if (count_ge) {
-		// FIXME: replace the following line: count ge elements
-		printf("54\n");
+		int my_counter = 0, final_count;
+		for (int i = 0; i < my_dense.nrow * my_dense.ncol; i++) {
+			my_counter += int(my_dense.cells[i] >= ge_element);
+		}
+		MPI_Reduce(&my_counter, &final_count, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+		if (mpi_rank == 0) {
+			printf("%d\n", final_count);
+		}
 	}
 
 	CP;
-	if (mpi_rank == 0) {
-		//MPI_Type_free(&MPI_SPARSE_CELL);
-		//MPI_Finalize();
-	}
+	MPI_Type_free(&MPI_SPARSE_CELL);
 	MPI_Finalize();
 	CP;
 	return 0;
