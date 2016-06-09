@@ -888,10 +888,12 @@ int main(int argc, char * argv[]) {
 		MPI_Gather(&commtime, 1, MPI_DOUBLE, commtimes.data(), 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 		MPI_Gather(&comptime, 1, MPI_DOUBLE, comptimes.data(), 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
+		// stat in an easy to import into R format
 		if (mpi_rank == 0) {
-			printf("%d\t%d\t%d\t", num_processes, repl_fact, exponent);
+			printf("comm\t%d\t%d\t%d\t%d\t%d\t", num_processes, repl_fact, exponent, N, (int)sparse.cells.size());
 			for (auto t: commtimes) printf("%lf\t", t);
-			printf("|\t");
+			printf("\n");
+			printf("comp\t%d\t%d\t%d\t%d\t%d\t", num_processes, repl_fact, exponent, N, (int)sparse.cells.size());
 			for (auto t: comptimes) printf("%lf\t", t);
 			printf("\n");
 		}
@@ -904,7 +906,3 @@ int main(int argc, char * argv[]) {
 	CP;
 	return 0;
 }
-
-//void tmp(result, sparse, dense) {
-//
-//}
