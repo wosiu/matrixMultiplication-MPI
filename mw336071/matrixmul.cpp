@@ -13,9 +13,6 @@
 #include <cmath>
 #include <utility>      // std::move (objects)
 #include <map>
-// only for debuging
-#include <thread>         // std::this_thread::sleep_for
-#include <chrono>         // std::chrono::seconds
 
 #include <mpi.h>
 
@@ -630,15 +627,9 @@ sparse_type sparseScatterV(SparseMatrix& sparse, MPI_Datatype MPI_SPARSE_CELL, i
 
 
 int main(int argc, char * argv[]) {
-	if (true) {
-		/*FILE * pFile = fopen("../sparse1.in", "r");
-		 auto tmp = readCSR(pFile);
-		 printSparse(tmp);
-		 return 0;*/
-	}
 
 	int show_results = 0, use_inner = 0, gen_seed = -1, repl_fact = 1, option = -1, exponent = 1, count_ge = 0,
-			sparse_mode = 0, sparse_mode_default = 1;
+			sparse_mode = 0, sparse_mode_default = 1, print_stat = 0;
 	int num_processes = 1, mpi_rank = 0;
 	double comm_start = 0, comm_end = 0, comp_start = 0, comp_end = 0;
 	double ge_element = 0;
@@ -650,7 +641,7 @@ int main(int argc, char * argv[]) {
 	// init MPI
 	auto MPI_SPARSE_CELL = commitSparseCellType();
 
-	while ((option = getopt(argc, argv, "vis:f:c:e:g:m:")) != -1) {
+	while ((option = getopt(argc, argv, "vixs:f:c:e:g:m:")) != -1) {
 		switch (option) {
 			case 'v':
 				show_results = 1;
@@ -684,7 +675,10 @@ int main(int argc, char * argv[]) {
 				break;
 			case 'm':
 				sparse_mode_default = 0;
-				sparse_mode = atof(optarg);
+				sparse_mode = atoi(optarg);
+				break;
+			case 'x':
+				print_stat = 1;
 				break;
 			default:
 				fprintf(stderr, "error parsing argument %c exiting\n", option);
@@ -767,13 +761,8 @@ int main(int argc, char * argv[]) {
 	comm_end = MPI_Wtime();
 	CP;
 
-	if ( debon) {
+	if ( debon ) {
 		printf("Communication %d: %.5f\n", mpi_rank, comm_end - comm_start);
-//		printf("%.5f\n", comm_end - comm_start);
-//		deb(my_sparse_chunk.size());
-//		debv(my_sparse_chunk);
-//		deb(repl_sparse_chunk.size());
-		//debv(repl_sparse_chunk);
 	}
 	DenseMatrix my_dense = generateDenseSubmatrix(mpi_rank, num_processes, N, gen_seed);
 	DenseMatrix partial_res(my_dense); // initialize with 0
@@ -888,7 +877,29 @@ int main(int argc, char * argv[]) {
 	}
 
 	CP;
+
+	if (print_stat == 1) {
+		double commtime = comm_end - comm_start;
+		double comptime = comp_end - comp_start;
+
+		vector<double> commtimes(num_processes);
+		vector<double> comptimes(num_processes);
+
+		MPI_Gather(&commtime, 1, MPI_DOUBLE, commtimes.data(), 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+		MPI_Gather(&comptime, 1, MPI_DOUBLE, comptimes.data(), 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+		if (mpi_rank == 0) {
+			printf("%d\t%d\t%d\t", num_processes, repl_fact, exponent);
+			for (auto t: commtimes) printf("%lf\t", t);
+			printf("|\t");
+			for (auto t: comptimes) printf("%lf\t", t);
+			printf("\n");
+		}
+	}
+
+	CP;
 	MPI_Type_free(&MPI_SPARSE_CELL);
+	CP;
 	MPI_Finalize();
 	CP;
 	return 0;
