@@ -1,58 +1,22 @@
-multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
-  library(grid)
-  
-  # Make a list from the ... arguments and plotlist
-  plots <- c(list(...), plotlist)
-  
-  numPlots = length(plots)
-  
-  # If layout is NULL, then use 'cols' to determine layout
-  if (is.null(layout)) {
-    # Make the panel
-    # ncol: Number of columns of plots
-    # nrow: Number of rows needed, calculated from # of cols
-    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
-                     ncol = cols, nrow = ceiling(numPlots/cols))
-  }
-  
-  if (numPlots==1) {
-    print(plots[[1]])
-    
-  } else {
-    # Set up the page
-    grid.newpage()
-    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
-    
-    # Make each plot, in the correct location
-    for (i in 1:numPlots) {
-      # Get the i,j matrix positions of the regions that contain this subplot
-      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
-      
-      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
-                                      layout.pos.col = matchidx$col))
-    }
-  }
-}
-
-
 library(dplyr)
 library(ggplot2)
 library(cowplot)
 proc_num = 8
 header = c("activity", "sparse_mode", "num_processes", "repl_fact", "exponent", "dim", "cells")
 header = c(header, paste0("p", as.character(1:proc_num)))
-res = read.csv(file("mw336071/result.csv"), sep="\t", header = F)
+res = read.csv(file("mw336071/benchmark/result.csv"), sep="\t", header = F)
 res = res[,-ncol(res)]
 colnames(res) = header
 
 mean = apply(res[,8:ncol(res)], 1, mean)
 sd = apply(res[,8:ncol(res)], 1, sd)
+sd2 = apply(res[,8:ncol(res)], 1, function(v) sd(v[-which.min(v)]) )
 
-stat = cbind(res[,1:7],mean,sd)
+stat = cbind(res[,1:7],mean,sd,sd2)
 
 stat = stat %>% select(-num_processes, -exponent)
 
-p = stat %>% group_by(dim,cells,activity) %>% summarise(means=list(mean), sds=list(sd), c=list(repl_fact), modes=list(sparse_mode))
+p = stat %>% group_by(dim,cells,activity) %>% summarise(means=list(mean), sds=list(sd), sd2s=list(sd2), c=list(repl_fact), modes=list(sparse_mode))
 library('scales')
 plots = c()
 for (i in 1:nrow(p)) {
@@ -66,11 +30,12 @@ for (i in 1:nrow(p)) {
   title = paste(activ, "\ndim", dim, "cells", cells, "dens", percent(cells/dim^2))
   c = data$c[[1]]
   sds = data$sds[[1]]
+  sd2s = data$sd2s[[1]]
   means = data$means[[1]]
   mode = data$modes[[1]]
-  df = data.frame(mode = factor(mode),c = factor(c),mean = means, sd=sds)
+  df = data.frame(mode = factor(mode),c = factor(c),mean = means, sd=sds, sd2=sd2s)
   class(df)
-  g <- ggplot(df, aes(c, fill=mode,weight=mean)) + geom_bar(position="dodge") + ylab("mean time [s]") + ggtitle(title) + xlab("replication factor")
+  g <- ggplot(df, aes(c, fill=mode,weight=sd2)) + geom_bar(position="dodge") + ylab("mean time [s]") + ggtitle(title) + xlab("replication factor")
   plots = c(plots, list(g))
 }
 plot_grid(plotlist = plots, ncol = 2)
