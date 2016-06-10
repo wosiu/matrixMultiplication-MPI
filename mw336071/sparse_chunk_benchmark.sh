@@ -1,5 +1,5 @@
 
-for m in 0 1 2
+for m in 0 2
 do
 	iter=1
 	#for iter in `seq 1 2`

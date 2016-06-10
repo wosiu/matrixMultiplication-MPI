@@ -890,10 +890,10 @@ int main(int argc, char * argv[]) {
 
 		// stat in an easy to import into R format
 		if (mpi_rank == 0) {
-			printf("comm\t%d\t%d\t%d\t%d\t%d\t", num_processes, repl_fact, exponent, N, (int)sparse.cells.size());
+			printf("comm\t%d\t%d\t%d\t%d\t%d\t%d\t", sparse_mode, num_processes, repl_fact, exponent, N, (int)sparse.cells.size());
 			for (auto t: commtimes) printf("%lf\t", t);
 			printf("\n");
-			printf("comp\t%d\t%d\t%d\t%d\t%d\t", num_processes, repl_fact, exponent, N, (int)sparse.cells.size());
+			printf("comp\t%d\t%d\t%d\t%d\t%d\t%d\t", sparse_mode, num_processes, repl_fact, exponent, N, (int)sparse.cells.size());
 			for (auto t: comptimes) printf("%lf\t", t);
 			printf("\n");
 		}
