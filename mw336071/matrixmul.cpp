@@ -1,4 +1,3 @@
-#include <unordered_map>
 #include <iostream>
 #include <string>
 #include <fstream>      // std::ifstream
@@ -12,12 +11,10 @@
 #include <algorithm>
 #include <cmath>
 #include <utility>      // std::move (objects)
-#include <map>
 
 #include <mpi.h>
 
 #include "densematgen.h"
-#include "utils.h"
 
 #define checkpointon false
 #define debon false
@@ -148,12 +145,7 @@ struct cell {
 	double v;
 };
 
-// for debug only
-ostream & operator <<(std::ostream & s, const cell & v) {
-	return s << '(' << v.x << ',' << v.y << ":" << v.v << ")";
-}
 
-//typedef pair<pair<int,int>, double> cell;
 typedef vector<cell> sparse_type;
 
 class SparseMatrix: public Matrix {
@@ -180,6 +172,11 @@ public:
 	}
 
 };
+
+// for debug only
+ostream & operator <<(std::ostream & s, const cell & v) {
+	return s << '(' << v.x << ',' << v.y << ":" << v.v << ")";
+}
 
 void partialMul(DenseMatrix& C, const SparseMatrix& A, const DenseMatrix& B) {
 	for (auto& sparse : A.cells) {
@@ -226,22 +223,6 @@ DenseMatrix generateDenseSubmatrix(int mpi_rank, int num_processes, int N, int s
 		}
 	}
 	return matrix;
-}
-
-MPI_Datatype commitSparseCellType() {
-	const int nitems = 3;
-	int blocklengths[nitems] = { 1, 1, 1 };
-	MPI_Datatype types[nitems] = { MPI_INT, MPI_INT, MPI_DOUBLE };
-	MPI_Datatype mpi_type;
-	MPI_Aint offsets[nitems];
-
-	offsets[0] = offsetof(cell, x);
-	offsets[1] = offsetof(cell, y);
-	offsets[2] = offsetof(cell, v);
-
-	MPI_Type_create_struct(nitems, blocklengths, offsets, types, &mpi_type);
-	MPI_Type_commit(&mpi_type);
-	return mpi_type;
 }
 
 SparseMatrix readCSR(ifstream & stream) {
@@ -296,6 +277,10 @@ SparseMatrix readCSR(ifstream & stream) {
 	return matrix;
 }
 
+/**
+ * Historical - unused in the final solution.
+ * Did not want to work with debugger.
+ */
 SparseMatrix readCSR(FILE * stream) {
 	int row_num, col_num, nz_num, max_num_nz_row;
 	if (fscanf(stream, "%d %d %d %d ", &row_num, &col_num, &nz_num, &max_num_nz_row) != 4) {
@@ -358,195 +343,9 @@ SparseMatrix readCSR(char* path) {
 	return sparse;
 }
 
-vector<sparse_type> colChunks(const SparseMatrix &sparse, int n) {
-	vector<sparse_type> chunks(n);
-	map<int, sparse_type> vectors;
-
-	// TODO przerobic na wersje column albo row chunks, dobierac sie do klucza po offsecie struktury, MARGIN = 0/1
-
-	for (auto& a : sparse.cells) {
-		vectors[a.y].push_back(a);
-	}
-	auto nzColNum = vectors.size();
-
-	int base = nzColNum / n; // base number of columns for each process
-	int add = nzColNum % n; // number of processes with +1 column than the rest
-	auto cit = vectors.begin();
-
-	for (int chunk_id = 0; chunk_id < n; chunk_id++) {
-		int total_col = base + int(chunk_id < add);
-		for (int count = 0; count < total_col; count++) {
-			auto& chunk = cit->second;
-			chunks[chunk_id].insert(chunks[chunk_id].end(), chunk.begin(), chunk.end());
-			cit++;
-		}
-	}
-
-	return chunks;
-}
-
-sparse_type sparseIsendIrecv(const SparseMatrix& sparse, MPI_Datatype MPI_SPARSE_CELL, int num_processes,
-		int mpi_rank) {
-	sparse_type my_sparse_chunk;
-	if ((mpi_rank) == 0) {
-		// prepare sparse chunks to scatter
-		vector<sparse_type> sparse_chunks;
-		sparse_chunks = colChunks(sparse, num_processes);
-		my_sparse_chunk = sparse_chunks[0];
-
-		for (int proc = 1; proc < num_processes; proc++) {
-			cell * data = sparse_chunks[proc].data();
-//			deb(proc); debt(data, sparse_chunks[proc].size());
-			MPI_Request req;
-			MPI_Isend(data, sparse_chunks[proc].size(), MPI_SPARSE_CELL, proc, 0, MPI_COMM_WORLD, &req);
-			MPI_Request_free(&req);
-		}
-	} else {
-		MPI_Request req;
-		MPI_Status status;
-		int incoming_size;
-
-		MPI_Probe(0, 0, MPI::COMM_WORLD, &status);
-		MPI_Get_count(&status, MPI_SPARSE_CELL, &incoming_size);
-		deb(mpi_rank);
-		deb(incoming_size);
-		my_sparse_chunk.resize(incoming_size);
-		MPI_Irecv(my_sparse_chunk.data(), incoming_size, MPI_SPARSE_CELL, 0, 0, MPI_COMM_WORLD, &req);
-		// TODO Waitall?
-		MPI_Request_free(&req);
-	}
-	return my_sparse_chunk;
-}
-
-sparse_type sparseScatterV(SparseMatrix& sparse, MPI_Datatype MPI_SPARSE_CELL, int num_processes, int mpi_rank) {
-	sparse_type my_sparse_chunk;
-	int chunks_num = 0;
-	vector<sparse_type> sparse_chunks;
-
-	if ((mpi_rank) == 0) {
-		// prepare sparse chunks to scatter
-		sparse_chunks = colChunks(sparse, num_processes);
-		sparse.cells.clear();
-		chunks_num = sparse_chunks.size();
-	}
-
-	cell* sendbuf = NULL;
-	int scounts[chunks_num];
-	int displs[chunks_num];
-
-	if ((mpi_rank) == 0) {
-		// flatten chunks
-		for (int i = 0; i < chunks_num; i++) {
-			sparse.cells.insert(sparse.cells.end(), sparse_chunks[i].begin(), sparse_chunks[i].end());
-			scounts[i] = sparse_chunks[i].size();
-			displs[i] = (i == 0) ? 0 : displs[i - 1] + scounts[i - 1];
-		}
-//			deb(proc); debt(data, sparse_chunks[proc].size());
-		sendbuf = sparse.cells.data();
-//		deb("after")
-//		deb(sparse.cells.size());
-//		debt(sendbuf, sparse.cells.size());
-	}
-
-	// scatter chunks sizes
-	int mysize = -1;
-	MPI_Scatter(scounts, 1, MPI_INT, &mysize, 1, MPI_INT, 0, MPI_COMM_WORLD);
-//	if (debon) cout << mpi_rank << ": mysize " << mysize << endl;
-	//	if (debon && sendbuf != NULL) { debt(sendbuf, 4); debt(scounts , num_processes); debt(displs , num_processes); }
-
-	my_sparse_chunk.resize(mysize);
-
-	// scatter data
-	MPI_Scatterv(sendbuf, scounts, displs, MPI_SPARSE_CELL, my_sparse_chunk.data(), mysize, MPI_SPARSE_CELL, 0,
-	MPI_COMM_WORLD);
-
-//	deb(my_sparse_chunk.size());
-//	debv(my_sparse_chunk)
-	return my_sparse_chunk;
-}
-
-sparse_type sparseScatterV2(SparseMatrix& sparse, MPI_Datatype MPI_SPARSE_CELL, int num_processes, int mpi_rank) {
-	sparse_type my_sparse_chunk;
-
-	cell* sendbuf = NULL;
-	int scounts[num_processes];
-	int displs[num_processes];
-
-	if ((mpi_rank) == 0) {
-		int nz = sparse.cells.size();
-		sendbuf = sparse.cells.data();
-		int base = nz / num_processes; // base number of columns for each process
-		int add = nz % num_processes; // number of processes with +1 column than the rest
-
-		for (int i = 0; i < num_processes; i++) {
-			scounts[i] = base + int(i < add);
-			displs[i] = (i == 0) ? 0 : displs[i - 1] + scounts[i - 1];
-		}
-	}
-
-	// scatter chunks sizes
-	int mysize = -1;
-	MPI_Scatter(scounts, 1, MPI_INT, &mysize, 1, MPI_INT, 0, MPI_COMM_WORLD);
-//	if (debon) cout << mpi_rank << ": mysize " << mysize << endl;
-	//	if (debon && sendbuf != NULL) { debt(sendbuf, 4); debt(scounts , num_processes); debt(displs , num_processes); }
-
-	my_sparse_chunk.resize(mysize);
-
-	// scatter data
-	MPI_Scatterv(sendbuf, scounts, displs, MPI_SPARSE_CELL, my_sparse_chunk.data(), mysize, MPI_SPARSE_CELL, 0,
-	MPI_COMM_WORLD);
-
-//	deb(my_sparse_chunk.size());
-//	debv(my_sparse_chunk)
-	return my_sparse_chunk;
-}
-
-/**
- * Only for benchmarking! Not used in final solution.
- */
-sparse_type sparseIsendIrecv2(SparseMatrix& sparse, MPI_Datatype MPI_SPARSE_CELL, int num_processes, int mpi_rank) {
-	sparse_type my_sparse_chunk;
-
-	if ((mpi_rank) == 0) {
-		// prepare sparse chunks to scatter
-		cell * data = sparse.cells.data();
-		int nz = sparse.cells.size();
-		int base = nz / num_processes; // base number of columns for each process
-		int add = nz % num_processes; // number of processes with +1 column than the rest
-
-		int rootCount = base + int(0 < add);
-		int offset = rootCount;
-		my_sparse_chunk = sparse_type(data, data + rootCount);
-
-		for (int proc = 1; proc < num_processes; proc++) {
-			int count = base + int(proc < add);
-
-			MPI_Request req;
-			MPI_Isend(data + offset, count, MPI_SPARSE_CELL, proc, 0, MPI_COMM_WORLD, &req);
-			MPI_Request_free(&req);
-			offset += count;
-		}
-	} else {
-		MPI_Request req;
-		MPI_Status status;
-		int incoming_size;
-
-		MPI_Probe(0, 0, MPI::COMM_WORLD, &status);
-		MPI_Get_count(&status, MPI_SPARSE_CELL, &incoming_size);
-		deb(mpi_rank);
-		deb(incoming_size);
-		my_sparse_chunk.resize(incoming_size);
-		MPI_Irecv(my_sparse_chunk.data(), incoming_size, MPI_SPARSE_CELL, 0, 0, MPI_COMM_WORLD, &req);
-		MPI_Request_free(&req);
-	}
-	return my_sparse_chunk;
-}
-
-
 void chunkSparse(SparseMatrix& sparse, int num_processes, int sparse_mode, int* scounts, int* displs) {
 
 	if (sparse_mode <= 1) {
-		// TODO move to separate function
 		if (sparse_mode == 1) {
 			// sort by cell value
 			sort(sparse.cells.begin(), sparse.cells.end(), [](const cell&a, const cell& b) {return a.v < b.v;});
@@ -572,7 +371,7 @@ void chunkSparse(SparseMatrix& sparse, int num_processes, int sparse_mode, int* 
 			int last_col_excl = info.start_col + info.ncol;
 			// need to find out where column start in continuous cells vector
 			// could be some tricky bound with own cmp in log..
-			for(; sparse.cells[cel_it].y < last_col_excl && cel_it < sparse.cells.size(); cel_it++) {
+			for (; sparse.cells[cel_it].y < last_col_excl && cel_it < sparse.cells.size(); cel_it++) {
 				scounts[p]++;
 			}
 		}
@@ -590,7 +389,7 @@ void chunkSparse(SparseMatrix& sparse, int num_processes, int sparse_mode, int* 
 			// as function above generates info for column blocked, so we "transpose"
 			int last_row_excl = info.start_col + info.ncol;
 			// could be some tricky bound with own cmp in log..
-			for(; sparse.cells[cel_it].x < last_row_excl && cel_it < sparse.cells.size(); cel_it++) {
+			for (; sparse.cells[cel_it].x < last_row_excl && cel_it < sparse.cells.size(); cel_it++) {
 				scounts[p]++;
 			}
 		}
@@ -599,8 +398,24 @@ void chunkSparse(SparseMatrix& sparse, int num_processes, int sparse_mode, int* 
 	}
 }
 
+MPI_Datatype commitSparseCellType() {
+	const int nitems = 3;
+	int blocklengths[nitems] = { 1, 1, 1 };
+	MPI_Datatype types[nitems] = { MPI_INT, MPI_INT, MPI_DOUBLE };
+	MPI_Datatype mpi_type;
+	MPI_Aint offsets[nitems];
+
+	offsets[0] = offsetof(cell, x);
+	offsets[1] = offsetof(cell, y);
+	offsets[2] = offsetof(cell, v);
+
+	MPI_Type_create_struct(nitems, blocklengths, offsets, types, &mpi_type);
+	MPI_Type_commit(&mpi_type);
+	return mpi_type;
+}
+
 sparse_type sparseScatterV(SparseMatrix& sparse, MPI_Datatype MPI_SPARSE_CELL, int num_processes, int mpi_rank,
-							int sparse_mode) {
+		int sparse_mode) {
 	sparse_type my_sparse_chunk;
 
 	cell* sendbuf = NULL;
@@ -619,12 +434,11 @@ sparse_type sparseScatterV(SparseMatrix& sparse, MPI_Datatype MPI_SPARSE_CELL, i
 
 	my_sparse_chunk.resize(mysize);
 	// scatter data
-	MPI_Scatterv(sendbuf, scounts, displs, MPI_SPARSE_CELL,
-			my_sparse_chunk.data(), mysize, MPI_SPARSE_CELL, 0, MPI_COMM_WORLD);
+	MPI_Scatterv(sendbuf, scounts, displs, MPI_SPARSE_CELL, my_sparse_chunk.data(), mysize, MPI_SPARSE_CELL, 0,
+			MPI_COMM_WORLD);
 
 	return my_sparse_chunk;
 }
-
 
 int main(int argc, char * argv[]) {
 
@@ -718,14 +532,10 @@ int main(int argc, char * argv[]) {
 
 	// get sparse chunk
 	sparse_type my_sparse_chunk;
-	//my_sparse_chunk = sparseScatterV2(sparse, MPI_SPARSE_CELL, num_processes, mpi_rank);
 	my_sparse_chunk = sparseScatterV(sparse, MPI_SPARSE_CELL, num_processes, mpi_rank, sparse_mode);
-	//my_sparse_chunk = sparseIsendIrecv2(sparse, MPI_SPARSE_CELL, num_processes, mpi_rank);
-	//my_sparse_chunk = sparseScatterV(sparse, MPI_SPARSE_CELL, num_processes, mpi_rank);
-	//	my_sparse_chunk = sparseIsendIrecv(sparse, MPI_SPARSE_CELL, num_processes, mpi_rank);
 
 	CP;
-	// create rplication group
+	// create replication group
 	MPI_Comm MPI_COMM_REPL;
 	MPI_Comm_split(MPI_COMM_WORLD, mpi_rank / repl_fact, mpi_rank, &MPI_COMM_REPL);
 
@@ -734,9 +544,6 @@ int main(int argc, char * argv[]) {
 
 	// exchange with everyone within replication group number of owned cells
 	int chunks_sizes[repl_fact], chunks_displs[repl_fact];
-	// TODO można to wyliczyć, jeśli ustalę jednoznacznie strategię rozsyłania chunków sparse
-	// i nie będzie to cell/row blocked
-	CP
 	MPI_Allgather(&my_sparse_size, 1, MPI_INT, chunks_sizes, 1, MPI_INT, MPI_COMM_REPL);
 	CP
 
@@ -754,14 +561,14 @@ int main(int argc, char * argv[]) {
 
 	CP
 
-	// wait after section which generates dense matrix.
+		// waits for finish following after generating dense matrix
 	MPI_Iallgatherv(my_sparse_chunk.data(), my_sparse_chunk.size(), MPI_SPARSE_CELL, repl_sparse_chunk.data(),
 			chunks_sizes, chunks_displs, MPI_SPARSE_CELL, MPI_COMM_REPL, &repl_req);
 
 	comm_end = MPI_Wtime();
 	CP;
 
-	if ( debon ) {
+	if ((debon)) {
 		printf("Communication %d: %.5f\n", mpi_rank, comm_end - comm_start);
 	}
 	DenseMatrix my_dense = generateDenseSubmatrix(mpi_rank, num_processes, N, gen_seed);
@@ -770,8 +577,8 @@ int main(int argc, char * argv[]) {
 	SparseMatrix my_sparse;
 	MPI_Wait(&repl_req, MPI_STATUS_IGNORE);
 	my_sparse.cells = std::move(repl_sparse_chunk);
-	// generate dense
 
+	// COMPUTE RESULT MATRIX
 	const int rounds_num = num_processes / repl_fact;
 	const int next_proc = (mpi_rank + repl_fact) % num_processes;
 	const int prev_proc = (mpi_rank - repl_fact + num_processes) % num_processes;
@@ -812,9 +619,7 @@ int main(int argc, char * argv[]) {
 
 		swap(my_dense.cells, partial_res.cells); // O(1)
 	}
-//	MPI_Barrier(MPI_COMM_WORLD	);
 	comp_end = MPI_Wtime();
-
 
 	if ( debon) {
 		printf("Computations %d: %.5f\n", mpi_rank, comp_end - comp_start);
@@ -839,7 +644,7 @@ int main(int argc, char * argv[]) {
 		}
 
 		MPI_Gatherv(my_dense.cells, my_dense.nrow * my_dense.ncol, MPI_DOUBLE, result, rcounts, displs, MPI_DOUBLE, 0,
-				MPI_COMM_WORLD);
+		MPI_COMM_WORLD);
 
 		CP;
 		if (mpi_rank == 0) {
@@ -890,11 +695,15 @@ int main(int argc, char * argv[]) {
 
 		// stat in an easy to import into R format
 		if (mpi_rank == 0) {
-			printf("comm\t%d\t%d\t%d\t%d\t%d\t%d\t", sparse_mode, num_processes, repl_fact, exponent, N, (int)sparse.cells.size());
-			for (auto t: commtimes) printf("%lf\t", t);
+			printf("comm\t%d\t%d\t%d\t%d\t%d\t%d\t", sparse_mode, num_processes, repl_fact, exponent, N,
+					(int) sparse.cells.size());
+			for (auto t : commtimes)
+				printf("%lf\t", t);
 			printf("\n");
-			printf("comp\t%d\t%d\t%d\t%d\t%d\t%d\t", sparse_mode, num_processes, repl_fact, exponent, N, (int)sparse.cells.size());
-			for (auto t: comptimes) printf("%lf\t", t);
+			printf("comp\t%d\t%d\t%d\t%d\t%d\t%d\t", sparse_mode, num_processes, repl_fact, exponent, N,
+					(int) sparse.cells.size());
+			for (auto t : comptimes)
+				printf("%lf\t", t);
 			printf("\n");
 		}
 	}
