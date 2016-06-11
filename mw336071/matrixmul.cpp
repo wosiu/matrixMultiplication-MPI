@@ -16,7 +16,7 @@
 
 #include "densematgen.h"
 
-#define checkpointon true
+#define checkpointon false
 #define debon false
 #define SEQ {this_thread::sleep_for (std::chrono::seconds(mpi_rank)); }
 #define CP {if (checkpointon) cout << endl << "CHECKPOINT@" << __LINE__ << endl;}
@@ -769,6 +769,7 @@ int main(int argc, char * argv[]) {
 	}
 	comp_end = MPI_Wtime();
 
+
 	if ( debon) {
 		printf("Computations %d: %.5f\n", mpi_rank, comp_end - comp_start);
 	}
@@ -778,10 +779,10 @@ int main(int argc, char * argv[]) {
 
 	MPI_Comm MPI_COMM_REPRESENTATIVES;
 	bool is_representative = (mpi_rank % repl_fact) == 0;
-	if (is_representative) {
-		MPI_Comm_split(MPI_COMM_WORLD, mpi_rank % repl_fact, mpi_rank, &MPI_COMM_REPRESENTATIVES);
-	}
+	MPI_Comm_split(MPI_COMM_WORLD, mpi_rank % repl_fact, mpi_rank, &MPI_COMM_REPRESENTATIVES);
 	MPI_Comm MPI_COMM_RESULTS;
+
+	CP;
 
 	vector<int> agreg_src_proc;
 	if (use_inner) {
@@ -795,7 +796,7 @@ int main(int argc, char * argv[]) {
 		}
 		MPI_COMM_RESULTS = MPI_COMM_WORLD;
 	}
-	agreg_src_proc.shrink_to_fit();
+	//agreg_src_proc.shrink_to_fit();
 	bool do_agregation = (!use_inner) || ((use_inner) && is_representative);
 
 	CP;
@@ -846,6 +847,7 @@ int main(int argc, char * argv[]) {
 		}
 		CP;
 	}
+
 
 	if (count_ge && do_agregation) {
 		int my_counter = 0, final_count;
