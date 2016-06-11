@@ -12,17 +12,20 @@
 #include <cmath>
 #include <utility>      // std::move (objects)
 
+#include <chrono> // debug only
+#include <thread> // debug only
+
 #include <mpi.h>
 
 #include "densematgen.h"
 
-#define checkpointon false
-#define debon false
+#define checkpointon true
+#define debon true
 #define SEQ {this_thread::sleep_for (std::chrono::seconds(mpi_rank)); }
 #define CP {if (checkpointon) cout << endl << "CHECKPOINT@" << __LINE__ << endl;}
 #define deb(burak) if(debon) {cout<<__LINE__<< " DEB-> "<<#burak<<": "<<burak<<endl;}
 #define debv(burak) if(debon) {cout<<__LINE__<< " DEB-> "<<#burak<<": \t"; for(unsigned int zyx=0;zyx<burak.size();zyx++) cout<<burak[zyx]<<" "; cout<<endl;}
-#define debt(burak,SIzE) if(debon) {cout<<__LINE__<< " DEB-> "<<#burak<<": \t"; for(unsigned int zyx=0;zyx<SIzE;zyx++) cout<<burak[zyx]<<" "; cout<<endl;}
+#define debt(burak,SIzE) if(debon) {cout<<__LINE__<< " DEB-> "<<#burak<<": \t"; for(int zyx=0;zyx<(int)SIzE;zyx++) cout<<burak[zyx]<<" "; cout<<endl;}
 #define debend if(debon) {cout<<"_____________________"<<endl;}
 
 using namespace std;
@@ -635,7 +638,6 @@ int main(int argc, char * argv[]) {
 			chunks_displs, MPI_SPARSE_CELL, MPI_COMM_REPL, &repl_sparse_req);
 
 	comm_end = MPI_Wtime();
-	CP;
 
 	if ((debon)) {
 		printf("Communication %d: %.5f\n", mpi_rank, comm_end - comm_start);
@@ -644,18 +646,20 @@ int main(int argc, char * argv[]) {
 	// REPPLICATE DENSE (only for inner)
 
 	DenseMatrix my_dense;
+	CP;
 
 	if (use_inner) {
 		DenseMatrix my_dense_chunk = generateDenseSubmatrix(mpi_rank, num_processes, N, gen_seed);
 
 		auto my_dense_size = my_dense_chunk.nrow * my_dense_chunk.ncol; // total number of cells
-		auto repl_dense_ncol = 0;
 
 		int chunks_sizes[repl_fact], chunks_displs[repl_fact];
 		int repl_rank_start = (mpi_rank / repl_fact) * repl_fact;
 		auto fstInfo = blocked1DSubMatrixInfo(repl_rank_start, num_processes, N);
 		chunks_sizes[0] = N * fstInfo.ncol;
 		chunks_displs[0] = 0;
+		auto repl_dense_ncol = fstInfo.ncol;
+
 
 		for (int i = 1; i < repl_fact; i++) {
 			auto proc = i + repl_rank_start;
@@ -664,16 +668,20 @@ int main(int argc, char * argv[]) {
 			chunks_displs[i] = chunks_displs[i - 1] + chunks_sizes[i - 1];
 			repl_dense_ncol += info.ncol;
 		}
-
 		my_dense.init(N, repl_dense_ncol, 0, fstInfo.start_col);
 
 		// blocking gather - there is no stuff to do meanwhile anyway
+		CP;
+
 		MPI_Allgatherv(my_dense_chunk.cells, my_dense_size, MPI_DOUBLE, my_dense.cells, chunks_sizes, chunks_displs,
-		MPI_DOUBLE, MPI_COMM_REPL);
+						MPI_DOUBLE, MPI_COMM_REPL);
+
+		CP;
 	} else {
 		DenseMatrix tmp = generateDenseSubmatrix(mpi_rank, num_processes, N, gen_seed);
 		swap(my_dense, tmp);
 	}
+
 
 	CP;
 	DenseMatrix partial_res(my_dense); // initialize with 0
@@ -773,12 +781,12 @@ int main(int argc, char * argv[]) {
 	if ( debon) {
 		printf("Computations %d: %.5f\n", mpi_rank, comp_end - comp_start);
 	}
-	CP;
 
 	// PRINT RESULTS
 
 	MPI_Comm MPI_COMM_REPRESENTATIVES;
 	bool is_representative = (mpi_rank % repl_fact) == 0;
+	CP
 	MPI_Comm_split(MPI_COMM_WORLD, mpi_rank % repl_fact, mpi_rank, &MPI_COMM_REPRESENTATIVES);
 	MPI_Comm MPI_COMM_RESULTS;
 
