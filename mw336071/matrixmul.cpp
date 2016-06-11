@@ -19,8 +19,9 @@
 
 #include "densematgen.h"
 
-#define checkpointon true
-#define debon true
+#define checkpointon false
+#define debon false
+#define BR {MPI_Finalize(); return 0;}
 #define SEQ {this_thread::sleep_for (std::chrono::seconds(mpi_rank)); }
 #define CP {if (checkpointon) cout << endl << "CHECKPOINT@" << __LINE__ << endl;}
 #define deb(burak) if(debon) {cout<<__LINE__<< " DEB-> "<<#burak<<": "<<burak<<endl;}
@@ -684,6 +685,7 @@ int main(int argc, char * argv[]) {
 
 
 	CP;
+
 	DenseMatrix partial_res(my_dense); // initialize with 0
 	SparseMatrix my_sparse;
 	MPI_Wait(&repl_sparse_req, MPI_STATUS_IGNORE);
@@ -706,20 +708,30 @@ int main(int argc, char * argv[]) {
 		rounds_num = q;
 		int l = mpi_rank % repl_fact;
 
-		int shift = l * q;
+		// if (l > 0)
+		int shift = l * q * repl_fact;
 		int next_proc = (mpi_rank + shift) % num_processes;
 		int prev_proc = (mpi_rank - shift + num_processes) % num_processes;
+//		SEQ deb(mpi_rank) deb(shift) deb(next_proc) deb(prev_proc) deb(q) deb(l)
 
+		CP
 		MPI_Isend(my_sparse.cells.data(), my_sparse.cells.size(), MPI_SPARSE_CELL, next_proc, 0, MPI_COMM_WORLD,
 				reqs + 0);
 
+		CP
+
 		MPI_Probe(prev_proc, 0, MPI_COMM_WORLD, stats + 0);
+		CP
 		MPI_Get_count(stats + 0, MPI_SPARSE_CELL, &incoming_size);
 		sparse_buff.resize(incoming_size);
+		CP
+
 		MPI_Irecv(sparse_buff.data(), incoming_size, MPI_SPARSE_CELL, prev_proc, 0, MPI_COMM_WORLD, reqs + 1);
 
+		CP
 		MPI_Waitall(2, reqs, stats);
 
+		CP
 		for (int st = 0; st < 2; st++) {
 			if (stats[st].MPI_ERROR != MPI_SUCCESS) {
 				throw runtime_error("Error in non-blocking send/receive: " + to_string(st));
@@ -735,7 +747,8 @@ int main(int argc, char * argv[]) {
 
 	CP;
 
-	// ALG 1 + 2 (commnon)
+	// COMPUTATIONS ALG 1 + 2 (commnon)
+
 	int next_proc = (mpi_rank + repl_fact) % num_processes;
 	int prev_proc = (mpi_rank - repl_fact + num_processes) % num_processes;
 
@@ -746,14 +759,16 @@ int main(int argc, char * argv[]) {
 		for (int r = 0; r < rounds_num; ++r) {
 			MPI_Isend(my_sparse.cells.data(), my_sparse.cells.size(), MPI_SPARSE_CELL, next_proc, 0, MPI_COMM_WORLD,
 					reqs + 0);
-
+			CP
 			partialMul(partial_res, my_sparse, my_dense); // does not modify my_sparse
 
 			MPI_Probe(prev_proc, 0, MPI_COMM_WORLD, stats + 0);
+			CP
 			MPI_Get_count(stats + 0, MPI_SPARSE_CELL, &incoming_size);
 			sparse_buff.resize(incoming_size);
+			CP
 			MPI_Irecv(sparse_buff.data(), incoming_size, MPI_SPARSE_CELL, prev_proc, 0, MPI_COMM_WORLD, reqs + 1);
-
+			CP
 			MPI_Waitall(2, reqs, stats);
 
 			for (int st = 0; st < 2; st++) {
@@ -768,6 +783,7 @@ int main(int argc, char * argv[]) {
 
 		if (use_inner) {
 			// exchange sub-matrixes between processes in replication group
+			CP
 			MPI_Allreduce(partial_res.cells, my_dense.cells, partial_res.nrow * partial_res.ncol, MPI_DOUBLE,
 			MPI_SUM, MPI_COMM_REPL);
 
@@ -776,8 +792,7 @@ int main(int argc, char * argv[]) {
 		}
 	}
 	comp_end = MPI_Wtime();
-
-
+	CP
 	if ( debon) {
 		printf("Computations %d: %.5f\n", mpi_rank, comp_end - comp_start);
 	}
@@ -786,7 +801,6 @@ int main(int argc, char * argv[]) {
 
 	MPI_Comm MPI_COMM_REPRESENTATIVES;
 	bool is_representative = (mpi_rank % repl_fact) == 0;
-	CP
 	MPI_Comm_split(MPI_COMM_WORLD, mpi_rank % repl_fact, mpi_rank, &MPI_COMM_REPRESENTATIVES);
 	MPI_Comm MPI_COMM_RESULTS;
 
@@ -794,43 +808,53 @@ int main(int argc, char * argv[]) {
 
 	vector<int> agreg_src_proc;
 	if (use_inner) {
-		for (int i = 0; i < num_processes / repl_fact; ++i) {
+		// collect only for root!
+		for (int i = 0; (mpi_rank == 0) && i < num_processes / repl_fact; ++i) {
 			agreg_src_proc.push_back(i * repl_fact);
 		}
 		MPI_COMM_RESULTS = MPI_COMM_REPRESENTATIVES;
 	} else {
-		for (int i = 0; i < num_processes; ++i) {
+		// collect only for root!
+		for (int i = 0; (mpi_rank == 0) && i < num_processes; ++i) {
 			agreg_src_proc.push_back(i);
 		}
 		MPI_COMM_RESULTS = MPI_COMM_WORLD;
 	}
+
 	//agreg_src_proc.shrink_to_fit();
 	bool do_agregation = (!use_inner) || ((use_inner) && is_representative);
+	int agreg_src_proc_num = agreg_src_proc.size();
+	agreg_src_proc.shrink_to_fit();
 
 	CP;
-
 	if (show_results && do_agregation) {
 		// gather results to root
 		int s = (mpi_rank == 0) ? N : 0;
-		int rcounts[s];
-		int displs[s];
+		int rcounts[agreg_src_proc_num];
+		int displs[agreg_src_proc_num];
 		double* result = NULL;
-		CP;
 
 		if (mpi_rank == 0) {
-			result = new double[s * s]; // on heap
+			result = new double[s * s]; // on heap, will be wrapped and freed by DanseMatrix destructor
 			// iterate through representatives
 			for (unsigned int i = 0; i < agreg_src_proc.size(); ++i) {
 				int repr_proc = agreg_src_proc[i];
-				auto info = blocked1DSubMatrixInfo(repr_proc, num_processes, N);
+				// for inner gets dimensions of whole replication group
+				auto info = blocked1DSubMatrixInfo(repr_proc, agreg_src_proc_num , N);
 				rcounts[i] = info.ncol * info.nrow; /* note change from previous example */
 				displs[i] = (i == 0) ? 0 : displs[i - 1] + rcounts[i - 1];
 			}
 		}
+		CP;
 
-		// gather only from
-		MPI_Gatherv(my_dense.cells, my_dense.nrow * my_dense.ncol, MPI_DOUBLE, result, rcounts, displs, MPI_DOUBLE, 0,
-				MPI_COMM_RESULTS);
+//		SEQ deb(mpi_rank) deb(my_dense.nrow) deb(my_dense.ncol)
+//		debt(my_dense.cells, my_dense.nrow * my_dense.ncol) deb(s) debv(agreg_src_proc)
+//		debt(rcounts, agreg_src_proc_num) debt(displs, agreg_src_proc_num)
+
+
+		// gather only from representatives
+		MPI_Gatherv(my_dense.cells, my_dense.nrow * my_dense.ncol, MPI_DOUBLE, result, rcounts, displs,
+				MPI_DOUBLE, 0, MPI_COMM_RESULTS);
 
 		CP;
 		if (mpi_rank == 0) {
