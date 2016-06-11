@@ -16,7 +16,7 @@
 
 #include "densematgen.h"
 
-#define checkpointon false
+#define checkpointon true
 #define debon false
 #define SEQ {this_thread::sleep_for (std::chrono::seconds(mpi_rank)); }
 #define CP {if (checkpointon) cout << endl << "CHECKPOINT@" << __LINE__ << endl;}
@@ -81,10 +81,55 @@ public:
 			DenseMatrix(other.nrow, other.ncol, other.start_row, other.start_col) {
 	}
 
+	// move assignment
+//	DenseMatrix& operator=(DenseMatrix&& other) {
+//		if (this != &other) {
+//			// release the current object’s resources
+//			if (cells != nullptr) {
+//				delete[] cells;
+//			}
+//			cells = other.cells;
+//
+//			nrow = other.nrow;
+//			ncol = other.ncol;
+//			start_row = other.start_row;
+//			start_col = other.start_col;
+//			last_row_excl = other.last_row_excl;
+//			last_col_excl = other.last_col_excl;
+//
+//		}
+//		return *this;
+//	}
+
+//	DenseMatrix(DenseMatrix&& other) :
+//			Matrix() {
+//		cells = other.cells;
+//
+//		nrow = other.nrow;
+//		ncol = other.ncol;
+//		start_row = other.start_row;
+//		start_col = other.start_col;
+//		last_row_excl = other.last_row_excl;
+//		last_col_excl = other.last_col_excl;
+//	}
+
 	~DenseMatrix() {
 		if (cells != nullptr) {
 			delete[] cells;
 		}
+	}
+
+	friend void swap(DenseMatrix& a, DenseMatrix& b) {
+		using std::swap;
+		// bring in swap for built-in types
+		swap(a.cells, b.cells);
+
+		swap(a.nrow, b.nrow);
+		swap(a.ncol, b.ncol);
+		swap(a.start_row, b.start_row);
+		swap(a.start_col, b.start_col);
+		swap(a.last_row_excl, b.last_row_excl);
+		swap(a.last_col_excl, b.last_col_excl);
 	}
 
 	void setCell(int global_x, int global_y, double val) const {
@@ -585,7 +630,7 @@ int main(int argc, char * argv[]) {
 	repl_sparse_chunk.resize(repl_sparse_size);
 	CP
 
-	// waits for finish following after generating dense matrix
+		// waits for finish following after generating dense matrix
 	MPI_Iallgatherv(my_sparse_chunk.data(), my_sparse_size, MPI_SPARSE_CELL, repl_sparse_chunk.data(), chunks_sizes,
 			chunks_displs, MPI_SPARSE_CELL, MPI_COMM_REPL, &repl_sparse_req);
 
@@ -626,7 +671,8 @@ int main(int argc, char * argv[]) {
 		MPI_Allgatherv(my_dense_chunk.cells, my_dense_size, MPI_DOUBLE, my_dense.cells, chunks_sizes, chunks_displs,
 		MPI_DOUBLE, MPI_COMM_REPL);
 	} else {
-		my_dense = generateDenseSubmatrix(mpi_rank, num_processes, N, gen_seed);
+		DenseMatrix tmp = generateDenseSubmatrix(mpi_rank, num_processes, N, gen_seed);
+		swap(my_dense, tmp);
 	}
 
 	CP;
@@ -646,7 +692,6 @@ int main(int argc, char * argv[]) {
 	// ALG 2 PREPARE (INNER)
 
 	if (use_inner) {
-
 		// SHIFT SPARSE LAYERS
 
 		int q = num_processes / repl_fact_sq;
@@ -680,6 +725,8 @@ int main(int argc, char * argv[]) {
 		rounds_num = num_processes / repl_fact;
 	}
 
+	CP;
+
 	// ALG 1 + 2 (commnon)
 	int next_proc = (mpi_rank + repl_fact) % num_processes;
 	int prev_proc = (mpi_rank - repl_fact + num_processes) % num_processes;
@@ -709,7 +756,6 @@ int main(int argc, char * argv[]) {
 
 			swap(my_sparse.cells, sparse_buff); // O(1)
 			sparse_buff.clear();
-
 		}
 
 		if (use_inner) {
