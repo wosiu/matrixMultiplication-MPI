@@ -85,38 +85,6 @@ public:
 			DenseMatrix(other.nrow, other.ncol, other.start_row, other.start_col) {
 	}
 
-	// move assignment
-//	DenseMatrix& operator=(DenseMatrix&& other) {
-//		if (this != &other) {
-//			// release the current object’s resources
-//			if (cells != nullptr) {
-//				delete[] cells;
-//			}
-//			cells = other.cells;
-//
-//			nrow = other.nrow;
-//			ncol = other.ncol;
-//			start_row = other.start_row;
-//			start_col = other.start_col;
-//			last_row_excl = other.last_row_excl;
-//			last_col_excl = other.last_col_excl;
-//
-//		}
-//		return *this;
-//	}
-
-//	DenseMatrix(DenseMatrix&& other) :
-//			Matrix() {
-//		cells = other.cells;
-//
-//		nrow = other.nrow;
-//		ncol = other.ncol;
-//		start_row = other.start_row;
-//		start_col = other.start_col;
-//		last_row_excl = other.last_row_excl;
-//		last_col_excl = other.last_col_excl;
-//	}
-
 	~DenseMatrix() {
 		if (cells != nullptr) {
 			delete[] cells;
@@ -170,11 +138,6 @@ public:
 	}
 
 	void setCells(int v = 0) {
-		/*for (auto& row : cells) {
-		 for (auto & col : row) {
-		 col = v;
-		 }
-		 }*/
 		for (int i = 0; i < nrow * ncol; i++) {
 			cells[i] = v;
 		}
@@ -842,13 +805,8 @@ int main(int argc, char * argv[]) {
 						rcounts[i] += info.ncol * info.nrow;
 					}
 					displs[i] = (i == 0) ? 0 : displs[i - 1] + rcounts[i - 1];
-					deb(repr_proc);
-					deb(rcounts[i]);
-					deb(rcounts[i]);
 				}
 
-				debt(rcounts, agreg_src_proc_num);
-				debt(displs, agreg_src_proc_num);
 			} else {
 				rcounts = new int[num_processes];
 				displs = new int[num_processes];
