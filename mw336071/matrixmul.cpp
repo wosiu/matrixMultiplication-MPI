@@ -48,13 +48,10 @@ public:
 	int last_col_excl = 0;
 	int last_row_excl = 0;
 
-	DenseMatrix() :
-			Matrix() {
-	}
-
-	// Initialize matrix with 0
-	DenseMatrix(int nrow, int ncol, int start_row = 0, int start_col = 0) :
-			Matrix() {
+	void init(int nrow, int ncol, int start_row, int start_col) {
+		if (this->cells != nullptr) {
+			delete[] this->cells;
+		}
 		this->cells = new double[nrow * ncol](); // continous block of memory
 
 		this->nrow = nrow;
@@ -63,6 +60,16 @@ public:
 		this->start_col = start_col;
 		this->last_row_excl = start_row + nrow;
 		this->last_col_excl = start_col + ncol;
+	}
+
+	DenseMatrix() :
+			Matrix() {
+	}
+
+	// Initialize matrix with 0
+	DenseMatrix(int nrow, int ncol, int start_row = 0, int start_col = 0) :
+			Matrix() {
+		init(nrow, ncol, start_row, start_col);
 	}
 
 	DenseMatrix(MatrixInfo other) :
@@ -144,7 +151,6 @@ struct cell {
 	int x, y;
 	double v;
 };
-
 
 typedef vector<cell> sparse_type;
 
@@ -423,7 +429,7 @@ sparse_type sparseScatterV(SparseMatrix& sparse, MPI_Datatype MPI_SPARSE_CELL, i
 	int displs[num_processes];
 
 	if ((mpi_rank) == 0) {
-		// may sort cells in some order
+		// may sort cells in some order regarding sparse_mode
 		chunkSparse(sparse, num_processes, sparse_mode, scounts, displs);
 		sendbuf = sparse.cells.data();
 	}
@@ -435,7 +441,7 @@ sparse_type sparseScatterV(SparseMatrix& sparse, MPI_Datatype MPI_SPARSE_CELL, i
 	my_sparse_chunk.resize(mysize);
 	// scatter data
 	MPI_Scatterv(sendbuf, scounts, displs, MPI_SPARSE_CELL, my_sparse_chunk.data(), mysize, MPI_SPARSE_CELL, 0,
-			MPI_COMM_WORLD);
+	MPI_COMM_WORLD);
 
 	return my_sparse_chunk;
 }
@@ -500,6 +506,10 @@ int main(int argc, char * argv[]) {
 				return 3;
 		}
 	}
+	auto repl_fact_sq = repl_fact * repl_fact;
+
+	// VALIDATE OPTIONS
+
 	if ((gen_seed == -1) || ((mpi_rank == 0) && sparse.isEmpty())) {
 		fprintf(stderr, "error: missing seed or sparse matrix file; exiting\n");
 		MPI_Finalize();
@@ -514,6 +524,18 @@ int main(int argc, char * argv[]) {
 		}
 	}
 
+	if (use_inner == 1) {
+		if (num_processes % repl_fact_sq != 0) {
+			fprintf(stderr, "error: squared replication factor should divide number of processes; exiting\n");
+			MPI_Finalize();
+			return 3;
+		}
+		if (sparse_mode != 3) {
+			sparse_mode = 3;
+			fprintf(stderr, "Inner algorithm require row-splitting of sparse matrix, mode omitted.\n");
+		}
+	}
+
 	if (use_inner == 0) {
 		if (num_processes % repl_fact != 0) {
 			fprintf(stderr, "error: replication factor should divide number of processes; exiting\n");
@@ -524,6 +546,8 @@ int main(int argc, char * argv[]) {
 	}
 	CP;
 
+	// START COMMUNICATION - replicate matrixes
+	// REPLICATE SPARSE (the same for both Alg)
 	comm_start = MPI_Wtime();
 
 	// broadcast matrix dimension
@@ -537,6 +561,7 @@ int main(int argc, char * argv[]) {
 	CP;
 	// create replication group
 	MPI_Comm MPI_COMM_REPL;
+	MPI_Request repl_sparse_req;
 	MPI_Comm_split(MPI_COMM_WORLD, mpi_rank / repl_fact, mpi_rank, &MPI_COMM_REPL);
 
 	// replicate within group
@@ -557,13 +582,11 @@ int main(int argc, char * argv[]) {
 	// gather all chunks within replication group
 	sparse_type repl_sparse_chunk;
 	repl_sparse_chunk.resize(repl_sparse_size);
-	MPI_Request repl_req;
-
 	CP
 
 		// waits for finish following after generating dense matrix
-	MPI_Iallgatherv(my_sparse_chunk.data(), my_sparse_chunk.size(), MPI_SPARSE_CELL, repl_sparse_chunk.data(),
-			chunks_sizes, chunks_displs, MPI_SPARSE_CELL, MPI_COMM_REPL, &repl_req);
+	MPI_Iallgatherv(my_sparse_chunk.data(), my_sparse_size, MPI_SPARSE_CELL, repl_sparse_chunk.data(), chunks_sizes,
+			chunks_displs, MPI_SPARSE_CELL, MPI_COMM_REPL, &repl_sparse_req);
 
 	comm_end = MPI_Wtime();
 	CP;
@@ -571,14 +594,48 @@ int main(int argc, char * argv[]) {
 	if ((debon)) {
 		printf("Communication %d: %.5f\n", mpi_rank, comm_end - comm_start);
 	}
-	DenseMatrix my_dense = generateDenseSubmatrix(mpi_rank, num_processes, N, gen_seed);
+
+	// REPPLICATE DENSE (only for inner)
+
+	DenseMatrix my_dense;
+
+	if (use_inner == 1) {
+		DenseMatrix my_dense_chunk = generateDenseSubmatrix(mpi_rank, num_processes, N, gen_seed);
+
+		auto my_dense_size = my_dense_chunk.nrow * my_dense_chunk.ncol; // total number of cells
+		auto repl_dense_ncol = 0;
+
+		int chunks_sizes[repl_fact], chunks_displs[repl_fact];
+		int repl_rank_start = (mpi_rank / repl_fact) * repl_fact;
+		auto fstInfo = blocked1DSubMatrixInfo(repl_rank_start, num_processes, N);
+		chunks_sizes[0] = N * fstInfo.ncol;
+		chunks_displs[0] = 0;
+
+		for (int i = 1; i < repl_fact; i++) {
+			auto proc = i + repl_rank_start;
+			auto info = blocked1DSubMatrixInfo(proc, num_processes, N);
+			chunks_sizes[i] = info.ncol * N;
+			chunks_displs[i] = chunks_displs[i - 1] + chunks_sizes[i - 1];
+			repl_dense_ncol += info.ncol;
+		}
+
+		my_dense.init(N, repl_dense_ncol, 0, fstInfo.start_col);
+
+		// blocking gather - there is no stuff to do meanwhile anyway
+		MPI_Allgatherv(my_dense_chunk.cells, my_dense_size, MPI_DOUBLE,
+				my_dense.cells, chunks_sizes, chunks_displs,MPI_DOUBLE, MPI_COMM_REPL);
+	} else {
+		my_dense = generateDenseSubmatrix(mpi_rank, num_processes, N, gen_seed);
+	}
+
 	DenseMatrix partial_res(my_dense); // initialize with 0
 
 	SparseMatrix my_sparse;
-	MPI_Wait(&repl_req, MPI_STATUS_IGNORE);
+	MPI_Wait(&repl_sparse_req, MPI_STATUS_IGNORE);
 	my_sparse.cells = std::move(repl_sparse_chunk);
 
 	// COMPUTE RESULT MATRIX
+
 	const int rounds_num = num_processes / repl_fact;
 	const int next_proc = (mpi_rank + repl_fact) % num_processes;
 	const int prev_proc = (mpi_rank - repl_fact + num_processes) % num_processes;
@@ -620,6 +677,8 @@ int main(int argc, char * argv[]) {
 		swap(my_dense.cells, partial_res.cells); // O(1)
 	}
 	comp_end = MPI_Wtime();
+
+	// PRINT RESULTS
 
 	if ( debon) {
 		printf("Computations %d: %.5f\n", mpi_rank, comp_end - comp_start);
