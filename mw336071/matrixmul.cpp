@@ -605,8 +605,6 @@ int main(int argc, char * argv[]) {
 	MPI_Iallgatherv(my_sparse_chunk.data(), my_sparse_size, MPI_SPARSE_CELL, repl_sparse_chunk.data(), chunks_sizes,
 			chunks_displs, MPI_SPARSE_CELL, MPI_COMM_REPL, &repl_sparse_req);
 
-	comm_end = MPI_Wtime();
-
 	if ((debon)) {
 		printf("Communication %d: %.5f\n", mpi_rank, comm_end - comm_start);
 	}
@@ -655,6 +653,11 @@ int main(int argc, char * argv[]) {
 	SparseMatrix my_sparse;
 	MPI_Wait(&repl_sparse_req, MPI_STATUS_IGNORE);
 	my_sparse.cells = std::move(repl_sparse_chunk);
+
+
+	comm_end = MPI_Wtime();
+	comp_start = MPI_Wtime();
+
 
 // COMPUTE RESULT MATRIX
 
@@ -717,7 +720,6 @@ int main(int argc, char * argv[]) {
 	int next_proc = (mpi_rank + repl_fact) % num_processes;
 	int prev_proc = (mpi_rank - repl_fact + num_processes) % num_processes;
 
-	comp_start = MPI_Wtime();
 	for (int exp_i = 0; exp_i < exponent; ++exp_i) {
 		partial_res.setCells(0);
 

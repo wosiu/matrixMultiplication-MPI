@@ -1,0 +1,41 @@
+m: iter: 1 f: benchmark_sparse/sparse_small.in c: 1
+
+real	0m8.287s
+user	0m59.185s
+sys	0m0.658s
+m: iter: 1 f: benchmark_sparse/sparse_small.in c: 2
+
+real	0m8.086s
+user	0m57.467s
+sys	0m0.474s
+m: iter: 1 f: benchmark_sparse/sparse_big.in c: 1
+
+real	0m11.826s
+user	1m18.633s
+sys	0m5.512s
+m: iter: 1 f: benchmark_sparse/sparse_big.in c: 2
+
+real	0m10.946s
+user	1m13.729s
+sys	0m3.320s
+m: iter: 1 f: benchmark_sparse/dense_small.in c: 1
+
+real	5m20.993s
+user	37m34.928s
+sys	0m4.548s
+m: iter: 1 f: benchmark_sparse/dense_small.in c: 2
+
+real	5m19.179s
+user	37m19.313s
+sys	0m3.941s
+m: iter: 1 f: benchmark_sparse/dense_big.in c: 1
+
+real	1m22.998s
+user	9m29.257s
+sys	0m3.907s
+m: iter: 1 f: benchmark_sparse/dense_big.in c: 2
+
+real	1m22.084s
+user	9m22.991s
+sys	0m2.994s
+
