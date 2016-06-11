@@ -448,8 +448,9 @@ sparse_type sparseScatterV(SparseMatrix& sparse, MPI_Datatype MPI_SPARSE_CELL, i
 
 int main(int argc, char * argv[]) {
 
-	int show_results = 0, use_inner = 0, gen_seed = -1, repl_fact = 1, option = -1, exponent = 1, count_ge = 0,
-			sparse_mode = 0, sparse_mode_default = 1, print_stat = 0;
+	bool use_inner = false;
+	int show_results = 0, gen_seed = -1, repl_fact = 1, option = -1, exponent = 1, count_ge = 0, sparse_mode = 0,
+			sparse_mode_default = 1, print_stat = 0;
 	int num_processes = 1, mpi_rank = 0;
 	double comm_start = 0, comm_end = 0, comp_start = 0, comp_end = 0;
 	double ge_element = 0;
@@ -467,7 +468,7 @@ int main(int argc, char * argv[]) {
 				show_results = 1;
 				break;
 			case 'i':
-				use_inner = 1;
+				use_inner = true;
 				break;
 			case 'f':
 				if ((mpi_rank) == 0) {
@@ -517,14 +518,14 @@ int main(int argc, char * argv[]) {
 	}
 
 	if (sparse_mode_default == 1) {
-		if (use_inner == 1) {
+		if (use_inner) {
 			sparse_mode = 3;
 		} else {
 			sparse_mode = 0;
 		}
 	}
 
-	if (use_inner == 1) {
+	if (use_inner) {
 		if (num_processes % repl_fact_sq != 0) {
 			fprintf(stderr, "error: squared replication factor should divide number of processes; exiting\n");
 			MPI_Finalize();
@@ -536,7 +537,7 @@ int main(int argc, char * argv[]) {
 		}
 	}
 
-	if (use_inner == 0) {
+	if (!use_inner) {
 		if (num_processes % repl_fact != 0) {
 			fprintf(stderr, "error: replication factor should divide number of processes; exiting\n");
 			MPI_Finalize();
@@ -584,7 +585,7 @@ int main(int argc, char * argv[]) {
 	repl_sparse_chunk.resize(repl_sparse_size);
 	CP
 
-		// waits for finish following after generating dense matrix
+	// waits for finish following after generating dense matrix
 	MPI_Iallgatherv(my_sparse_chunk.data(), my_sparse_size, MPI_SPARSE_CELL, repl_sparse_chunk.data(), chunks_sizes,
 			chunks_displs, MPI_SPARSE_CELL, MPI_COMM_REPL, &repl_sparse_req);
 
@@ -599,7 +600,7 @@ int main(int argc, char * argv[]) {
 
 	DenseMatrix my_dense;
 
-	if (use_inner == 1) {
+	if (use_inner) {
 		DenseMatrix my_dense_chunk = generateDenseSubmatrix(mpi_rank, num_processes, N, gen_seed);
 
 		auto my_dense_size = my_dense_chunk.nrow * my_dense_chunk.ncol; // total number of cells
@@ -622,29 +623,66 @@ int main(int argc, char * argv[]) {
 		my_dense.init(N, repl_dense_ncol, 0, fstInfo.start_col);
 
 		// blocking gather - there is no stuff to do meanwhile anyway
-		MPI_Allgatherv(my_dense_chunk.cells, my_dense_size, MPI_DOUBLE,
-				my_dense.cells, chunks_sizes, chunks_displs,MPI_DOUBLE, MPI_COMM_REPL);
+		MPI_Allgatherv(my_dense_chunk.cells, my_dense_size, MPI_DOUBLE, my_dense.cells, chunks_sizes, chunks_displs,
+		MPI_DOUBLE, MPI_COMM_REPL);
 	} else {
 		my_dense = generateDenseSubmatrix(mpi_rank, num_processes, N, gen_seed);
 	}
 
+	CP;
 	DenseMatrix partial_res(my_dense); // initialize with 0
-
 	SparseMatrix my_sparse;
 	MPI_Wait(&repl_sparse_req, MPI_STATUS_IGNORE);
 	my_sparse.cells = std::move(repl_sparse_chunk);
 
 	// COMPUTE RESULT MATRIX
 
-	const int rounds_num = num_processes / repl_fact;
-	const int next_proc = (mpi_rank + repl_fact) % num_processes;
-	const int prev_proc = (mpi_rank - repl_fact + num_processes) % num_processes;
+	int rounds_num = -1;
 	MPI_Request reqs[2];
 	MPI_Status stats[2];
 	int incoming_size;
 	sparse_type sparse_buff;
 
-	CP;
+	// ALG 2 PREPARE (INNER)
+
+	if (use_inner) {
+
+		// SHIFT SPARSE LAYERS
+
+		int q = num_processes / repl_fact_sq;
+		rounds_num = q;
+		int l = mpi_rank % repl_fact;
+
+		int shift = l * q;
+		int next_proc = (mpi_rank + shift) % num_processes;
+		int prev_proc = (mpi_rank - shift + num_processes) % num_processes;
+
+		MPI_Isend(my_sparse.cells.data(), my_sparse.cells.size(), MPI_SPARSE_CELL, next_proc, 0, MPI_COMM_WORLD,
+				reqs + 0);
+
+		MPI_Probe(prev_proc, 0, MPI_COMM_WORLD, stats + 0);
+		MPI_Get_count(stats + 0, MPI_SPARSE_CELL, &incoming_size);
+		sparse_buff.resize(incoming_size);
+		MPI_Irecv(sparse_buff.data(), incoming_size, MPI_SPARSE_CELL, prev_proc, 0, MPI_COMM_WORLD, reqs + 1);
+
+		MPI_Waitall(2, reqs, stats);
+
+		for (int st = 0; st < 2; st++) {
+			if (stats[st].MPI_ERROR != MPI_SUCCESS) {
+				throw runtime_error("Error in non-blocking send/receive: " + to_string(st));
+			}
+		}
+
+		swap(my_sparse.cells, sparse_buff); // O(1)
+		sparse_buff.clear();
+
+	} else {
+		rounds_num = num_processes / repl_fact;
+	}
+
+	// ALG 1 + 2 (commnon)
+	int next_proc = (mpi_rank + repl_fact) % num_processes;
+	int prev_proc = (mpi_rank - repl_fact + num_processes) % num_processes;
 
 	comp_start = MPI_Wtime();
 	for (int exp_i = 0; exp_i < exponent; ++exp_i) {
@@ -674,17 +712,49 @@ int main(int argc, char * argv[]) {
 
 		}
 
-		swap(my_dense.cells, partial_res.cells); // O(1)
+		if (use_inner) {
+			// exchange sub-matrixes between processes in replication group
+			MPI_Allreduce(partial_res.cells, my_dense.cells, partial_res.nrow * partial_res.ncol, MPI_DOUBLE,
+			MPI_SUM, MPI_COMM_REPL);
+
+		} else {
+			swap(my_dense.cells, partial_res.cells); // O(1)
+		}
 	}
 	comp_end = MPI_Wtime();
-
-	// PRINT RESULTS
 
 	if ( debon) {
 		printf("Computations %d: %.5f\n", mpi_rank, comp_end - comp_start);
 	}
 	CP;
-	if (show_results) {
+
+	// PRINT RESULTS
+
+	MPI_Comm MPI_COMM_REPRESENTATIVES;
+	bool is_representative = (mpi_rank % repl_fact) == 0;
+	if (is_representative) {
+		MPI_Comm_split(MPI_COMM_WORLD, mpi_rank % repl_fact, mpi_rank, &MPI_COMM_REPRESENTATIVES);
+	}
+	MPI_Comm MPI_COMM_RESULTS;
+
+	vector<int> agreg_src_proc;
+	if (use_inner) {
+		for (int i = 0; i < num_processes / repl_fact; ++i) {
+			agreg_src_proc.push_back(i * repl_fact);
+		}
+		MPI_COMM_RESULTS = MPI_COMM_REPRESENTATIVES;
+	} else {
+		for (int i = 0; i < num_processes; ++i) {
+			agreg_src_proc.push_back(i);
+		}
+		MPI_COMM_RESULTS = MPI_COMM_WORLD;
+	}
+	agreg_src_proc.shrink_to_fit();
+	bool do_agregation = (!use_inner) || ((use_inner) && is_representative);
+
+	CP;
+
+	if (show_results && do_agregation) {
 		// gather results to root
 		int s = (mpi_rank == 0) ? N : 0;
 		int rcounts[s];
@@ -694,16 +764,18 @@ int main(int argc, char * argv[]) {
 
 		if (mpi_rank == 0) {
 			result = new double[s * s]; // on heap
-			//double result[N*N]; // on stack;
-			for (int i = 0; i < num_processes; ++i) {
-				auto info = blocked1DSubMatrixInfo(i, num_processes, N);
+			// iterate through representatives
+			for (unsigned int i = 0; i < agreg_src_proc.size(); ++i) {
+				int repr_proc = agreg_src_proc[i];
+				auto info = blocked1DSubMatrixInfo(repr_proc, num_processes, N);
 				rcounts[i] = info.ncol * info.nrow; /* note change from previous example */
 				displs[i] = (i == 0) ? 0 : displs[i - 1] + rcounts[i - 1];
 			}
 		}
 
+		// gather only from
 		MPI_Gatherv(my_dense.cells, my_dense.nrow * my_dense.ncol, MPI_DOUBLE, result, rcounts, displs, MPI_DOUBLE, 0,
-		MPI_COMM_WORLD);
+				MPI_COMM_RESULTS);
 
 		CP;
 		if (mpi_rank == 0) {
@@ -729,12 +801,12 @@ int main(int argc, char * argv[]) {
 		CP;
 	}
 
-	if (count_ge) {
+	if (count_ge && do_agregation) {
 		int my_counter = 0, final_count;
 		for (int i = 0; i < my_dense.nrow * my_dense.ncol; i++) {
 			my_counter += int(my_dense.cells[i] >= ge_element);
 		}
-		MPI_Reduce(&my_counter, &final_count, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+		MPI_Reduce(&my_counter, &final_count, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_RESULTS);
 		if (mpi_rank == 0) {
 			printf("%d\n", final_count);
 		}
