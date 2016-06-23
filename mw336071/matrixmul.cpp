@@ -31,6 +31,10 @@
 
 using namespace std;
 
+// http://stackoverflow.com/questions/10664699/stdto-string-more-than-instance-of-overloaded-function-matches-the-argument
+#define int_to_string(str) std::to_string( static_cast<long long>(str) )
+
+
 struct MatrixInfo {
 	int base, add, nrow, ncol, start_row, start_col;
 };
@@ -210,7 +214,7 @@ MatrixInfo blocked1DSubMatrixInfo(int rank, int num_processes, int dim) {
 	MatrixInfo info;
 	if (rank >= num_processes) {
 		throw invalid_argument(
-				"Given rank bigger eq than number of processes: " + to_string(rank) + ">=" + to_string(num_processes));
+				"Given rank bigger eq than number of processes: " + int_to_string(rank) + ">=" + int_to_string(num_processes));
 	}
 	info.base = dim / num_processes; // base number of columns for each process
 	info.add = dim % num_processes; // number of processes with +1 column than the rest
@@ -416,7 +420,7 @@ void chunkSparse(SparseMatrix& sparse, int num_processes, int sparse_mode, int* 
 			}
 		}
 	} else {
-		throw invalid_argument("Wrong sparse mode: " + to_string(sparse_mode));
+		throw invalid_argument("Wrong sparse mode: " + int_to_string(sparse_mode));
 	}
 }
 
@@ -702,7 +706,7 @@ int main(int argc, char * argv[]) {
 		CP
 		for (int st = 0; st < 2; st++) {
 			if (stats[st].MPI_ERROR != MPI_SUCCESS) {
-				throw runtime_error("Error in non-blocking send/receive: " + to_string(st));
+				throw runtime_error("Error in non-blocking send/receive: " + int_to_string(st));
 			}
 		}
 
@@ -740,7 +744,7 @@ int main(int argc, char * argv[]) {
 
 			for (int st = 0; st < 2; st++) {
 				if (stats[st].MPI_ERROR != MPI_SUCCESS) {
-					throw runtime_error("Error in non-blocking send/receive: " + to_string(st));
+					throw runtime_error("Error in non-blocking send/receive: " + int_to_string(st));
 				}
 			}
 
