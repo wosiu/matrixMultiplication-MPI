@@ -582,7 +582,7 @@ int main(int argc, char * argv[]) {
 	CP;
 // create replication group
 	MPI_Comm MPI_COMM_REPL;
-	MPI_Request repl_sparse_req;
+	//MPI_Request repl_sparse_req;
 	MPI_Comm_split(MPI_COMM_WORLD, mpi_rank / repl_fact, mpi_rank, &MPI_COMM_REPL);
 
 // replicate within group
@@ -605,9 +605,10 @@ int main(int argc, char * argv[]) {
 	repl_sparse_chunk.resize(repl_sparse_size);
 	CP
 
-		// waits for finish following after generating dense matrix
-	MPI_Iallgatherv(my_sparse_chunk.data(), my_sparse_size, MPI_SPARSE_CELL, repl_sparse_chunk.data(), chunks_sizes,
-			chunks_displs, MPI_SPARSE_CELL, MPI_COMM_REPL, &repl_sparse_req);
+	// for newer MPI here could be used iallgatherv and wait after sparse generated
+	// waits for finish following after generating dense matrix
+	MPI_Allgatherv(my_sparse_chunk.data(), my_sparse_size, MPI_SPARSE_CELL, repl_sparse_chunk.data(), chunks_sizes,
+			chunks_displs, MPI_SPARSE_CELL, MPI_COMM_REPL);
 
 	if ((debon)) {
 		printf("Communication %d: %.5f\n", mpi_rank, comm_end - comm_start);
@@ -655,7 +656,7 @@ int main(int argc, char * argv[]) {
 
 	DenseMatrix partial_res(my_dense); // initialize with 0
 	SparseMatrix my_sparse;
-	MPI_Wait(&repl_sparse_req, MPI_STATUS_IGNORE);
+	//MPI_Wait(&repl_sparse_req, MPI_STATUS_IGNORE);
 	my_sparse.cells = std::move(repl_sparse_chunk);
 
 
